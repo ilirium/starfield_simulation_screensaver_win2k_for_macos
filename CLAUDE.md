@@ -14,6 +14,15 @@ a build input — it cannot run on macOS, and nothing in the build reads it.
 have it. Nothing here needs it; supply your own copy from a Windows 2000
 `system32` only if you want to re-check the disassembly against NOTES.md.
 
+The documentation set, in the order a newcomer should read it:
+
+| File | What it is |
+|---|---|
+| `WIN32-PRIMER.md` | How the original works and how Win32 works; assumes no Windows background |
+| `TEARDOWN.md` | How the binary was disassembled, including two wrong turns |
+| `HOW-IT-WORKS.md` | How the Swift port works, for readers new to Swift/AppKit |
+| `NOTES.md` | Bare reference: every constant with the address it came from |
+
 `NOTES.md` records the disassembly: every constant in `StarfieldEngine.swift`
 is annotated there with the address it came from. **Read NOTES.md before
 changing anything in the engine** — the integer math, the truncating division,

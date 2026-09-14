@@ -1,9 +1,13 @@
 # How the macOS port works
 
 Written for someone who knows how to program but has never touched Swift,
-AppKit, or Objective-C. If you know the Win32 side of the original, the
-mapping is mostly one-to-one — Apple just uses different words for the same
-ideas.
+AppKit, or Objective-C.
+
+It explains the port by comparing it to the Win32 original, because the two
+are mostly one-to-one — Apple just uses different words for the same ideas.
+**If you do not know Win32 either, read `WIN32-PRIMER.md` first**; it builds
+that half from nothing and assumes no Windows background. Without it the
+comparisons here are explaining one unfamiliar thing in terms of another.
 
 `NOTES.md` has the recovered constants. `TEARDOWN.md` has the disassembly
 story. This file is about the thing that was built.

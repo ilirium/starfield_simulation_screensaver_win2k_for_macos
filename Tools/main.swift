@@ -1,10 +1,22 @@
 import Cocoa
 import ScreenSaver
 
-// Verification harness. Renders StarfieldView frames offscreen and also
-// composites successive frames into a trail image, which should show stars
-// streaking radially outward from the center.
-let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
+// Verification and illustration harness.
+//
+//   PNG: renders real StarfieldView frames offscreen via cacheDisplay, plus a
+//        max-composite trail image. The trail image is the regression check --
+//        stars must streak radially outward and grow along the way.
+//   SVG: the same simulation emitted as vector art for the README. Generated
+//        from StarfieldEngine rather than hand-drawn, so the picture cannot
+//        drift away from the code.
+//
+//   ./render <out-dir> [--svg <repo-dir>]
+
+let args = CommandLine.arguments
+let outDir = args.count > 1 ? args[1] : "."
+let svgDir = args.firstIndex(of: "--svg").map { args[$0 + 1] }
+
+// MARK: - PNG: drive the real view offscreen
 
 let store = ScreenSaverDefaults(forModuleWithName: Config.bundleIdentifier) ?? .standard
 store.set(120, forKey: Config.densityKey)
@@ -30,7 +42,6 @@ for _ in 0..<40 { view.animateOneFrame() }
 guard let single = snapshot() else { exit(1) }
 write(single, "single")
 
-// Additive composite: max() each frame's luminance into an accumulator.
 let w = single.pixelsWide, h = single.pixelsHigh
 var accum = [UInt8](repeating: 0, count: w * h)
 for _ in 0..<26 {
@@ -44,10 +55,64 @@ for _ in 0..<26 {
         }
     }
 }
-guard let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
+if let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
         bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false,
         colorSpaceName: .deviceWhite, bytesPerRow: w, bitsPerPixel: 8),
-      let dst = out.bitmapData else { exit(1) }
-accum.withUnsafeBufferPointer { dst.update(from: $0.baseAddress!, count: w * h) }
-write(out, "trails")
+   let dst = out.bitmapData {
+    accum.withUnsafeBufferPointer { dst.update(from: $0.baseAddress!, count: w * h) }
+    write(out, "trails")
+}
 print("wrote single.png and trails.png (\(w)x\(h))")
+
+// MARK: - SVG: the same simulation as vector art
+
+/// Renders `frames` ticks of the engine into one SVG. With `frames == 1` this
+/// is what the saver looks like; with more, every frame is overlaid so the
+/// stars leave the radial trails that prove the perspective divide is right.
+///
+/// No Y flip here: SVG measures Y downward, exactly like Windows GDI, so the
+/// engine's own coordinates go straight through. The macOS view is the odd one
+/// out (see HOW-IT-WORKS.md, "The coordinate flip").
+func makeSVG(width: Int, height: Int, density: Int, warp: Int,
+             settle: Int, frames: Int, scale: Double) -> String {
+    var engine = StarfieldEngine()
+    engine.warpSpeed = warp
+    engine.configure(width: width, height: height, density: density)
+    for _ in 0..<settle { engine.step() }
+
+    var rects = ""
+    var drawn = 0
+    for _ in 0..<frames {
+        engine.step()
+        for star in engine.stars {
+            let p = engine.project(star)
+            let side = max(1, Int((Double(p.size) * scale).rounded()))
+            // Trim stars straddling the edge so the art has clean margins.
+            guard p.x >= 0, p.y >= 0, p.x + side <= width, p.y + side <= height else { continue }
+            rects += #"<rect x="\#(p.x)" y="\#(p.y)" width="\#(side)" height="\#(side)"/>"#
+            drawn += 1
+        }
+        rects += "\n"
+    }
+
+    return """
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 \(width) \(height)" \
+    width="\(width)" height="\(height)" role="img" \
+    aria-label="Starfield Simulation, \(frames) frame\(frames == 1 ? "" : "s")">
+    <rect width="\(width)" height="\(height)" fill="#000"/>
+    <g fill="#fff" shape-rendering="crispEdges">
+    \(rects)</g>
+    </svg>
+
+    """
+}
+
+if let svgDir {
+    let still = makeSVG(width: 640, height: 400, density: 140, warp: 5,
+                        settle: 40, frames: 1, scale: 1.6)
+    let trails = makeSVG(width: 640, height: 400, density: 70, warp: 7,
+                         settle: 30, frames: 22, scale: 1.4)
+    try? still.write(toFile: "\(svgDir)/starfield.svg", atomically: true, encoding: .utf8)
+    try? trails.write(toFile: "\(svgDir)/trails.svg", atomically: true, encoding: .utf8)
+    print("wrote starfield.svg (\(still.utf8.count) B) and trails.svg (\(trails.utf8.count) B)")
+}

@@ -636,6 +636,22 @@ Then, on macOS 14 and later, the sequence is:
 A practical consequence of step 2: if something goes wrong, the crash reports
 name `legacyScreenSaver`, not `Starfield`. That is the process to look for.
 
+### More than one display
+
+Step 4 says "instantiates the view at screen size", and with several monitors
+that happens **once per screen** — each display gets its own `StarfieldView`,
+its own engine, and therefore its own center point to fly out of.
+
+The original behaves differently. It asks Windows for the *virtual screen* —
+the bounding box of every monitor combined — and creates a single window
+across all of them, so the stars stream out of one point somewhere in the
+middle of the whole arrangement (`TEARDOWN.md` §11).
+
+Neither is a choice the code makes. On Windows the program measures the
+desktop itself; on macOS the host decides how many views exist and hands each
+one a rectangle. The port could not span displays without abandoning the
+`ScreenSaverView` contract entirely.
+
 ---
 
 ## 12. Windows to macOS, side by side

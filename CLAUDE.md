@@ -57,7 +57,12 @@ the other three files in `Sources/`.
 ```
 
 `Tools/main.swift` renders frames offscreen via `cacheDisplay(in:to:)` and
-writes `single.png` plus a `trails.png` max-composite. The trail image is the
+writes `single.png` plus a `trails.png` max-composite. Passing
+`--svg docs` additionally regenerates `docs/starfield.svg` and
+`docs/trails.svg`, the README images — they are emitted from `StarfieldEngine`
+rather than drawn, so they track the code. Regenerate them after any change to
+the simulation. (SVG needs no Y flip: like Windows GDI, it measures Y
+downward. The macOS view is the odd one out.) The trail image is the
 useful regression check: stars must streak radially outward from the center
 and grow along the way. Build it the same way as the preview, substituting
 `Tools/main.swift` for `Sources/main.swift`.

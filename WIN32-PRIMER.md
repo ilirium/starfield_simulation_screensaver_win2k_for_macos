@@ -421,6 +421,47 @@ helper library (`SCRNSAVE.LIB`) that handled the boilerplate and called your
 `ScreenSaverProc` instead, but the contract is just "an EXE that understands
 three flags".
 
+### What the original actually does at startup
+
+Everything in this file shows up in one routine at `0x1002300`, recovered in
+`TEARDOWN.md` §11. In order:
+
+1. Fill in a `WNDCLASSW`. Style `CS_VREDRAW|CS_HREDRAW|CS_DBLCLKS|CS_OWNDC`;
+   window procedure at `0x100217f`; icon via `LoadIconW`; class name
+   `"WindowsScreenSaverClass"`; and — the detail that matters —
+   `hbrBackground = GetStockObject(BLACK_BRUSH)`.
+
+   **That one field is why the screen is black.** No code ever paints a
+   background. Windows clears the window using the class brush, for free, on
+   every expose. `CS_OWNDC` is the other quiet win: a private device context,
+   which is what makes calling `GetDC` 20 times a second cheap.
+
+2. Branch on whether a parent window was passed.
+
+   | | `/p` preview | `/s` full screen |
+   |---|---|---|
+   | size from | `GetClientRect(parent)` | `GetSystemMetrics(SM_*VIRTUALSCREEN)` |
+   | style | `WS_CHILD\|WS_VISIBLE\|WS_CLIPCHILDREN` | `WS_POPUP\|WS_VISIBLE\|WS_CLIPSIBLINGS\|WS_CLIPCHILDREN` |
+   | extended style | none | `WS_EX_TOPMOST` |
+   | title | `"Preview"` | `"Screen Saver"` |
+
+   The four `SM_*VIRTUALSCREEN` metrics describe the bounding box of **all
+   monitors combined**, so the full-screen saver is one window spanning the
+   entire multi-monitor desktop — with a single center point somewhere in the
+   middle of the whole arrangement. If those metrics return zero, as they do
+   on Windows versions predating multi-monitor support, it falls back to
+   `GetDC(NULL)` plus `GetClipBox` to measure the screen. That fallback is the
+   only use of the third GDI import.
+
+3. `FindWindowW("WindowsScreenSaverClass", "Screen Saver")`, then `IsWindow`,
+   then `SetForegroundWindow` and exit — a single-instance guard, so a second
+   launch raises the first copy instead of starting over.
+
+4. `RegisterWindowMessageW("QueryCancelAutoPlay")` — a custom message number,
+   so inserting a CD does not pop an AutoPlay dialog over the saver.
+
+5. `RegisterClassW`, then `CreateWindowExW`, then into the message loop of §2.
+
 The password check was a separate concern: the imports include
 `VerifyScreenSavePwd`, loaded from `PASSWORD.CPL` — a Windows 9x-era mechanism
 where the saver itself asked whether the user could unlock. Windows 2000's

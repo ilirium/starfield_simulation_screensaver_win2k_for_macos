@@ -294,14 +294,120 @@ ramp are all correct together.
 
 That composite is checked in as the regression test for the port.
 
+## 11. Postscript: the import that did not fit
+
+Section 3 makes much of the three GDI imports, then sections 5 and 6 explain
+two of them. `GetClipBox` is never accounted for. That gap sat in this
+document until someone asked whether anything was missing.
+
+It is not in the render loop at all. Its only call site is `0x1002418`, in a
+routine 3 KB further on that had never been opened:
+
+```
+$ grep -n '\*0x1001018' dis.txt
+1745: 1002418:  calll  *0x1001018
+```
+
+The routine is the program's startup, and it decodes cleanly once you look.
+
+A `WNDCLASSW` is built on the stack — ten consecutive 4-byte slots from
+`-0x6c(%ebp)` to `-0x48(%ebp)`, which is exactly the size and shape of the
+struct. That layout match is what makes the rest readable:
+
+| Slot | Field | Value |
+|---|---|---|
+| `-0x6c` | `style` | `0x2b` = `CS_VREDRAW\|CS_HREDRAW\|CS_DBLCLKS\|CS_OWNDC` |
+| `-0x68` | `lpfnWndProc` | `0x100217f` |
+| `-0x5c` | `hInstance` | module handle |
+| `-0x58` | `hIcon` | `LoadIconW(hInst, 100)` |
+| `-0x50` | `hbrBackground` | `GetStockObject(4)` = `BLACK_BRUSH` |
+| `-0x48` | `lpszClassName` | `0x10012e0` = `"WindowsScreenSaverClass"` |
+
+**`BLACK_BRUSH` is why the screen is black.** Nothing in the program ever
+paints a background. The window class carries a black brush, so Windows
+clears to black for free on every expose. One field, and the whole
+"background" problem disappears.
+
+`CS_OWNDC` is the other quiet one: it gives the window a private, persistent
+device context, which is what makes calling `GetDC` on every single tick cheap
+enough to do 20 times a second.
+
+Then comes the `/s` versus `/p` branch — one compare, two worlds:
+
+```asm
+cmpl  %ebx, 0x8(%ebp)     ; was a parent HWND passed?
+je    0x10023e2           ;   no  -> full screen
+```
+
+**Preview** (`/p`, a parent window was passed) calls `GetClientRect` on the
+parent and builds a child window: style `0x52000000` =
+`WS_CHILD|WS_VISIBLE|WS_CLIPCHILDREN`, no extended style, titled `"Preview"`.
+
+**Full screen** (`/s`) calls `GetSystemMetrics` four times in a row:
+
+```asm
+movl  0x1001164, %edi     ; GetSystemMetrics
+pushl $0x4c ; calll *%edi ; SM_XVIRTUALSCREEN
+pushl $0x4d ; calll *%edi ; SM_YVIRTUALSCREEN
+pushl $0x4e ; calll *%edi ; SM_CXVIRTUALSCREEN
+pushl $0x4f ; calll *%edi ; SM_CYVIRTUALSCREEN
+```
+
+Those four metrics describe the **virtual screen** — the bounding box of every
+monitor combined. So the original does not run per-display. It creates one
+window spanning the entire multi-monitor desktop, with a single center point
+somewhere in the middle of the whole arrangement. Style `0x96000000` =
+`WS_POPUP|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN`, extended style `8` =
+`WS_EX_TOPMOST`, titled `"Screen Saver"`.
+
+And *finally* `GetClipBox`, in the fallback arm:
+
+```asm
+cmpl  %ebx, %esi          ; SM_CXVIRTUALSCREEN == 0 ?
+je    0x100240a
+cmpl  %ebx, %edi          ; SM_CYVIRTUALSCREEN == 0 ?
+jne   0x100243c           ; both non-zero -> use them
+0x100240a:
+  pushl %ebx              ; NULL
+  calll *0x10010ec        ; GetDC(NULL)      -> DC for the whole screen
+  calll *0x1001018        ; GetClipBox(hdc, &rect)
+  calll *0x10010e8        ; ReleaseDC
+```
+
+The virtual-screen metrics were added in Windows 98 and NT 5. On anything
+older they return zero, and the program falls back to asking for a device
+context covering the entire screen and reading its bounding rectangle. **That
+is the third GDI import**: a compatibility path for a machine this binary was
+probably never run on.
+
+The rest of the startup reads like a checklist of things a well-behaved saver
+does, none of which has anything to do with stars:
+
+- `FindWindowW("WindowsScreenSaverClass", "Screen Saver")` → `IsWindow` →
+  `SetForegroundWindow`, then return — a single-instance guard, so launching a
+  second copy raises the first instead of starting over.
+- `RegisterWindowMessageW("QueryCancelAutoPlay")` — so an inserted CD does not
+  pop a dialog over the saver.
+- `RegisterClassW`, then `CreateWindowExW`.
+
+The lesson repeats the one from section 8. There, a global was named from a
+single use. Here, a whole import was left unexplained because the two call
+sites that were interesting had already answered the question being asked.
+**An unexplained import is an unread code path** — and in this case it was
+hiding the multi-monitor behavior, which is a real difference between the
+original and the port.
+
 ## What was not done
 
-Only the simulation was recovered. Untouched: the dialog procedure, the
-message loop, the preview and password paths (`VerifyScreenSavePwd`,
-`PASSWORD.CPL`), the `WinHelp` wiring, and the CRT startup code — which is
-most of the 18 KB of `.text`. The 112 instructions between the two `PatBlt`
-calls are the entire interesting part of the program, and finding them took
-far less effort than reading the binary front to back would have.
+The simulation and the startup path are recovered. Still untouched: the dialog
+procedure, the password path (`VerifyScreenSavePwd`, `PASSWORD.CPL`), the
+`WinHelp` wiring, and the CRT startup code.
+
+The 112 instructions between the two `PatBlt` calls remain the entire
+*interesting* part of the program, and finding them took far less effort than
+reading the binary front to back would have. But section 11 is a caution
+against declaring victory too early: the cheap grep that finds what you are
+looking for will not tell you what you failed to ask about.
 
 ## Summary of method
 
@@ -315,3 +421,5 @@ far less effort than reading the binary front to back would have.
 6. Decode the arithmetic idioms (`lea` multiplies, shifts, `cltd; idiv`).
 7. Grep *every* reference to a global before naming it.
 8. Reimplement, render, and look at the picture.
+9. Before calling it done, check that **every** import has been explained. The
+   one that does not fit is pointing at a code path you never read.

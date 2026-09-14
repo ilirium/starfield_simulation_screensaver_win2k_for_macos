@@ -109,5 +109,16 @@ and an up-down control (`fmsctls_updown32`).
 2. **Full redraw per frame** instead of erase-rect-then-draw-rect. Visually
    identical, but overlapping stars no longer punch holes in each other.
 3. **RNG seeding**, as above.
+4. **Multi-monitor behavior**, which is forced by the platform rather than
+   chosen. The original measures `SM_XVIRTUALSCREEN` … `SM_CYVIRTUALSCREEN`
+   and creates **one** window spanning every monitor combined, so a two-screen
+   setup gets a single starfield with its center somewhere between the
+   displays. macOS instantiates a separate `ScreenSaverView` per screen, so
+   each display gets an independent starfield centered on itself. Nothing in
+   the port can change this — the host decides how many views to create.
+
+   (Untested here: this machine drove one display during development. It
+   follows from the recovered `GetSystemMetrics` calls on the Windows side —
+   see `TEARDOWN.md` §11 — and from documented macOS behavior on the other.)
 
 Everything else — constants, integer math, clamps, ramp placement — matches.

@@ -74,8 +74,8 @@ print("wrote single.png and trails.png (\(w)x\(h))")
 /// engine's own coordinates go straight through. The macOS view is the odd one
 /// out (see HOW-IT-WORKS.md, "The coordinate flip").
 func makeSVG(width: Int, height: Int, density: Int, warp: Int,
-             settle: Int, frames: Int, scale: Double) -> String {
-    var engine = StarfieldEngine()
+             settle: Int, frames: Int, scale: Double, seed: UInt32) -> String {
+    var engine = StarfieldEngine(seed: seed)
     engine.warpSpeed = warp
     engine.configure(width: width, height: height, density: density)
     for _ in 0..<settle { engine.step() }
@@ -108,10 +108,12 @@ func makeSVG(width: Int, height: Int, density: Int, warp: Int,
 }
 
 if let svgDir {
+    // Fixed seeds: the committed SVGs must regenerate byte-for-byte, so CI can
+    // diff them and catch artwork silently drifting from the simulation.
     let still = makeSVG(width: 640, height: 400, density: 140, warp: 5,
-                        settle: 40, frames: 1, scale: 1.6)
+                        settle: 40, frames: 1, scale: 1.6, seed: 0x5CEE_D100)
     let trails = makeSVG(width: 640, height: 400, density: 70, warp: 7,
-                         settle: 30, frames: 22, scale: 1.4)
+                         settle: 30, frames: 22, scale: 1.4, seed: 0x5CEE_D200)
     try? still.write(toFile: "\(svgDir)/starfield.svg", atomically: true, encoding: .utf8)
     try? trails.write(toFile: "\(svgDir)/trails.svg", atomically: true, encoding: .utf8)
     print("wrote starfield.svg (\(still.utf8.count) B) and trails.svg (\(trails.utf8.count) B)")

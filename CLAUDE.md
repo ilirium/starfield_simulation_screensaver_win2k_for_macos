@@ -56,13 +56,25 @@ the other three files in `Sources/`.
 ./build/StarfieldPreview 120 8      # density, warpSpeed; opens a real window
 ```
 
-`Tools/main.swift` renders frames offscreen via `cacheDisplay(in:to:)` and
-writes `single.png` plus a `trails.png` max-composite. Passing
-`--svg docs` additionally regenerates `docs/starfield.svg` and
-`docs/trails.svg`, the README images — they are emitted from `StarfieldEngine`
-rather than drawn, so they track the code. Regenerate them after any change to
-the simulation. (SVG needs no Y flip: like Windows GDI, it measures Y
-downward. The macOS view is the odd one out.) The trail image is the
+`build.sh` also builds two tools and runs one of them:
+
+- `build/LoadTest <path.saver>` loads the bundle the way macOS does — resolves
+  `NSPrincipalClass` by name, instantiates, runs a frame. `build.sh` runs it on
+  every build, so a broken bundle fails the build rather than failing silently
+  at screen-blank time. It exits non-zero on failure, so it works as a CI gate.
+- `build/Render <out-dir> [--svg docs]` renders frames offscreen via
+  `cacheDisplay(in:to:)` (`single.png`, plus a `trails.png` max-composite), and
+  with `--svg` regenerates the two README images.
+
+The SVGs are emitted from `StarfieldEngine` with **fixed seeds**, so they
+regenerate byte-for-byte. Keep it that way: it is what lets CI diff them and
+catch artwork drifting from the simulation. Regenerate after any change to the
+engine. (SVG needs no Y flip: like Windows GDI it measures Y downward. The
+macOS view is the odd one out.)
+
+`Tools/pe-imports.py <binary>` dumps a 32-bit PE import table with each
+function's IAT address — the address to grep a disassembly for to find that
+function's call sites. It is how the teardown started; see `TEARDOWN.md` §3. The trail image is the
 useful regression check: stars must streak radially outward from the center
 and grow along the way. Build it the same way as the preview, substituting
 `Tools/main.swift` for `Sources/main.swift`.

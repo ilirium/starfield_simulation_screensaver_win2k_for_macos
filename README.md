@@ -70,6 +70,9 @@ three GDI calls — `GetClipBox`, `PatBlt`, `GetStockObject`. No `SetPixel`, no
 `LineTo`. The stars were never dots; they are filled rectangles, which is why
 this port draws hard-edged squares with antialiasing switched off.
 
+Project state, open decisions, and what is still unverified:
+[`HANDOFF.md`](HANDOFF.md).
+
 ## Differences from the original
 
 Four, all deliberate and all recorded in [`NOTES.md`](NOTES.md):

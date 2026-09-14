@@ -195,7 +195,7 @@ makes it possible.
 |---|---|---|
 | `build.sh` completes | no | certain |
 | `StarfieldEngine` behavior — projection, respawn, clamps, RNG sequence | **no** — pure integer code, no AppKit | certain |
-| SVG regeneration matches committed files | no | certain |
+| SVG regeneration matches committed files | no | certain (fixed seeds) |
 | Bundle loads, `NSPrincipalClass` resolves, `animateOneFrame` runs | probably | **needs verification** |
 | Offscreen PNG render via `cacheDisplay` | probably | **needs verification** |
 

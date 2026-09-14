@@ -13,7 +13,7 @@ SWIFTFLAGS=(-O -wmo -sdk "$SDK" -target arm64-apple-macosx14.0)
 # Sources shared by the bundle; main.swift belongs to the preview only.
 LIB_SRC=(Sources/StarfieldEngine.swift Sources/StarfieldView.swift Sources/ConfigController.swift)
 
-rm -rf "$SAVER" "$BUILD/${NAME}Preview" "$BUILD/obj"
+rm -rf "$SAVER" "$BUILD/${NAME}Preview" "$BUILD/Render" "$BUILD/LoadTest" "$BUILD/obj"
 mkdir -p "$SAVER/Contents/MacOS" "$SAVER/Contents/Resources" "$BUILD/obj"
 
 echo "==> compiling saver"
@@ -37,6 +37,21 @@ xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/${NAME}Preview" \
     "${LIB_SRC[@]}" Sources/main.swift \
     -framework ScreenSaver -framework Cocoa
 
+# Render regenerates docs/*.svg; LoadTest verifies the bundle the way macOS
+# will. Both link the same sources as the saver, so they exercise real code.
+echo "==> compiling tools"
+xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/Render" \
+    "${LIB_SRC[@]}" Tools/Render/main.swift \
+    -framework ScreenSaver -framework Cocoa
+xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/LoadTest" \
+    Tools/LoadTest/main.swift \
+    -framework ScreenSaver -framework Cocoa
+
+echo "==> verifying the bundle loads"
+"$BUILD/LoadTest" "$SAVER"
+
 echo
 echo "built: $SAVER"
 echo "       $BUILD/${NAME}Preview"
+echo "       $BUILD/Render      (./build/Render <out-dir> [--svg docs])"
+echo "       $BUILD/LoadTest    (./build/LoadTest <path.saver>)"

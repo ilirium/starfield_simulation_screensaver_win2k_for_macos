@@ -213,7 +213,7 @@ rather than waiting on it, which was the right call — the workaround is one
    `aingineering/AING-0003-uninstaller.md`: an uninstaller, a System Settings
    preview thumbnail, and a fix for `Render` overwriting the user's real saved
    settings. Every design question is answered there; it needs implementing,
-   not deciding. Work on a branch off `main`, not on `main`.
+   not deciding. Work on the branch `uninstaller-and-a-few-fixes`, off `main`.
 
    Start with step 0 in its §9 — confirm macOS still honours the
    `Contents/Resources/thumbnail.png` convention for third-party savers. The

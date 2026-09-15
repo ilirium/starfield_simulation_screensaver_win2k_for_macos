@@ -365,10 +365,15 @@ every build, so they cannot fall out of step with the engine.
 
 ## 9. Branch and sequence
 
-Work happens on a branch off `main` — proposed name **`v1.1.0`**, since this is
-a release-scoped batch rather than one feature. Landed with `--no-ff` when
-done, then tagged on `main`: merge first, tag second, for the reasons in
-`HANDOFF.md`.
+Work happens on a branch off `main`, named **`uninstaller-and-a-few-fixes`**.
+
+(Chosen as "uninstaller and a few fixes"; git refnames cannot contain spaces —
+`git check-ref-format` rejects them — so the words are hyphenated. The name is
+deliberately descriptive of the batch rather than of one feature, since three
+unrelated things ship together.)
+
+Landed with `--no-ff` when done, then tagged on `main`: merge first, tag
+second, for the reasons in `HANDOFF.md`.
 
 Six commits, stopping before the tag for review.
 

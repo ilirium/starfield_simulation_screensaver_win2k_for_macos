@@ -74,7 +74,7 @@ Resources/            Info.plist (NSPrincipalClass = StarfieldView)
 docs/                 the four technical documents
 docs/assets/          the two README SVGs (generated, do not hand-edit)
 aingineering/         working documents, AING-NNNN
-.github/workflows/    ci.yml
+.github/workflows/    ci.yml, release.yml
 ```
 
 The root holds `README.md` (front page), this file, `CLAUDE.md` (which must
@@ -96,6 +96,7 @@ Working documents:
 |---|---|
 | `aingineering/AING-0001-ci-and-distribution.md` | CI, universal builds, signing, packaging — researched, now partly implemented |
 | `aingineering/AING-0002-folder-naming-options.md` | the folder-naming long list, and the decision that came from outside it |
+| `aingineering/AING-0003-uninstaller.md` | the uninstaller, planned for v1.1.0 — decided, not implemented |
 
 New working documents take the next `AING-NNNN` in sequence; numbers are never
 reused.
@@ -208,14 +209,18 @@ rather than waiting on it, which was the right call — the workaround is one
 
 ## Next steps, in the order that makes sense
 
-1. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
+1. **Build the uninstaller** — planned in full in
+   `aingineering/AING-0003-uninstaller.md`, ships as v1.1.0. Every design
+   question is answered there; it needs implementing, not deciding. Includes a
+   fix for `Render` overwriting the user's real saved settings.
+2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.
-2. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
+3. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
    nothing else does.
-3. **Multi-monitor**, whenever a second display is to hand — the last untested
+4. **Multi-monitor**, whenever a second display is to hand — the last untested
    claim that is purely about behavior rather than packaging.
-4. **Watch what the first downloaders hit.** The Gatekeeper story is reasoned
+5. **Watch what the first downloaders hit.** The Gatekeeper story is reasoned
    and partly verified — quarantine does propagate through the zip onto the
    inner executable — but nobody has yet installed a downloaded build on a
    machine that did not produce it.

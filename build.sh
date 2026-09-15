@@ -13,7 +13,8 @@ SWIFTFLAGS=(-O -wmo -sdk "$SDK" -target arm64-apple-macosx14.0)
 # Sources shared by the bundle; main.swift belongs to the preview only.
 LIB_SRC=(Sources/StarfieldEngine.swift Sources/StarfieldView.swift Sources/ConfigController.swift)
 
-rm -rf "$SAVER" "$BUILD/${NAME}Preview" "$BUILD/Render" "$BUILD/LoadTest" "$BUILD/obj"
+rm -rf "$SAVER" "$BUILD/${NAME}Preview" "$BUILD/Render" "$BUILD/LoadTest" \
+       "$BUILD/EngineTests" "$BUILD/obj"
 mkdir -p "$SAVER/Contents/MacOS" "$SAVER/Contents/Resources" "$BUILD/obj"
 
 echo "==> compiling saver"
@@ -47,6 +48,18 @@ xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/LoadTest" \
     Tools/LoadTest/main.swift \
     -framework ScreenSaver -framework Cocoa
 
+# EngineTests links StarfieldEngine.swift alone -- no Cocoa, no ScreenSaver, no
+# NSView. The engine is where arithmetic can regress, and staying framework-free
+# means the suite runs on a headless CI machine whether or not AppKit will
+# instantiate a view there.
+xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/EngineTests" \
+    Sources/StarfieldEngine.swift Tools/EngineTests/main.swift
+
+# Arithmetic first, then the bundle: a fidelity regression is a more specific
+# failure than "the plugin would not load", so it should be the one reported.
+echo "==> running engine tests"
+"$BUILD/EngineTests"
+
 echo "==> verifying the bundle loads"
 "$BUILD/LoadTest" "$SAVER"
 
@@ -55,3 +68,4 @@ echo "built: $SAVER"
 echo "       $BUILD/${NAME}Preview"
 echo "       $BUILD/Render      (./build/Render <out-dir> [--svg docs/assets])"
 echo "       $BUILD/LoadTest    (./build/LoadTest <path.saver>)"
+echo "       $BUILD/EngineTests (./build/EngineTests)"

@@ -56,8 +56,15 @@ the other three files in `Sources/`.
 ./build/StarfieldPreview 120 8      # density, warpSpeed; opens a real window
 ```
 
-`build.sh` also builds two tools and runs one of them:
+`build.sh` also builds three tools and runs two of them:
 
+- `build/EngineTests` checks `StarfieldEngine` against the disassembly — the
+  LCG sequence, truncating projection, the size ramp, the clamps, and the
+  speed ramp's placement inside the per-star loop. Each section names the
+  `docs/NOTES.md` address it verifies, so a failure points at the constant that
+  drifted. It links `StarfieldEngine.swift` **alone**, with no Cocoa and no
+  ScreenSaver, so it runs headless. `build.sh` runs it before `LoadTest`:
+  a fidelity regression is more specific than "the plugin would not load".
 - `build/LoadTest <path.saver>` loads the bundle the way macOS does — resolves
   `NSPrincipalClass` by name, instantiates, runs a frame. `build.sh` runs it on
   every build, so a broken bundle fails the build rather than failing silently

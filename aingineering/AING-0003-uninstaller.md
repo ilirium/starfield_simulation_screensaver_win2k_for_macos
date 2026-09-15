@@ -1,7 +1,17 @@
-# Plan: an uninstaller, shipped as v1.1.0
+# Plan: uninstaller, preview thumbnail, and a settings fix — v1.1.0
 
 Status: **decided, not implemented.** Every question below has an answer; no
 code has been written. Written 2026-09-15, against `main` at `5003ca4`.
+
+Three things ship together as v1.1.0:
+
+1. **An uninstaller** (§§1–5) — the substance of this document.
+2. **A System Settings thumbnail** (§7) — the saver currently ships no preview
+   image at all, so macOS falls back to something generic.
+3. **A fix for `Render` overwriting the user's saved settings** (§6) — a bug
+   found while mapping the uninstaller's footprint.
+
+All work happens on a **branch off `main`**, not on `main` directly. See §9.
 
 The four design questions were put and answered before planning went further;
 the answers are in "Decisions taken". Everything in "What an install leaves
@@ -255,7 +265,85 @@ artwork needs regenerating.
 
 ---
 
-## 7. Files
+## 7. The System Settings thumbnail
+
+### What macOS looks for — measured
+
+```
+$ find "/System/Library/Screen Savers/Random.saver" -type f
+  Contents/Resources/thumbnail.png       90 x 58
+  Contents/Resources/thumbnail@2x.png   180 x 116
+```
+
+| Finding | Detail |
+|---|---|
+| Mechanism | **Filename convention.** `Random.saver`'s `Info.plist` has no thumbnail, preview, poster or icon key |
+| Sizes | `90x58` and `180x116` — ratio 1.5517, which is neither 16:10 nor 3:2 |
+| Optional | `FloatingMessage.saver` ships no thumbnail at all |
+| Ours today | `Contents/Resources` is **empty** — the bundle is Info.plist, the executable, and the signature |
+
+That empty `Resources` directory is why a generic fallback appears in System
+Settings. There is nothing for macOS to show.
+
+**Unverified, and it gates everything else here:** whether System Settings on
+macOS 14+ still honours this convention for *third-party* legacy `.saver`
+bundles. `Random.saver` is Apple's own, and the convention predates System
+Settings. Checking is cheap and requires no design commitment — drop two PNGs
+into `Contents/Resources`, reinstall, look at the Screen Saver pane. **That is
+step one of implementation.** If the convention is dead, the rest of this
+section is void and the fallback needs different research.
+
+### What the image should be
+
+Generated from `StarfieldEngine` with a fixed seed, never hand-drawn — the same
+rule the README artwork follows, for the same reason: a thumbnail that drifts
+from what the saver actually does is a small lie that nobody notices for years.
+
+`Render` gains a `--thumbnail <dir>` mode emitting both sizes exactly.
+
+**A single instant will not read at 90 pixels.** The saver at rest is
+1-pixel white dots on black; scaled to a 90x58 box that is nearly featureless
+noise, and at a glance indistinguishable from a blank thumbnail. Two options:
+
+| Option | Reads as |
+|---|---|
+| **Short trail composite** (recommended) | radial streaks from the centre — recognisably *this* screen saver, and conveys motion a still cannot |
+| Single frame, literal | exactly what one tick looks like; honest, but visually close to empty |
+
+The trail composite already exists as a technique — it is how `docs/assets/trails.svg`
+is produced. Density and `starScale` want tuning for the small canvas rather
+than inheriting the defaults, which were chosen for a full display.
+
+### Where the file lives — a tension worth naming
+
+"Source only, no binaries committed" is a recorded decision, and the README
+illustrations are SVG **specifically so they stay text**. Committing two PNGs
+would quietly break that.
+
+So: **generate the thumbnails at build time, commit nothing.** They are build
+output, like the bundle itself.
+
+This forces a reordering of `build.sh`, which is the one non-obvious
+consequence in this whole document:
+
+```
+  now:    compile saver -> Info.plist -> codesign -> compile tools -> test
+  needed: compile Render -> generate thumbnails -> assemble saver
+          (binary + Info.plist + thumbnails) -> codesign -> test
+```
+
+The signature covers `Contents/Resources`, so **the thumbnails must be in place
+before `codesign` runs**, or the bundle ships with a broken signature. `Render`
+links the sources directly and does not need the `.saver`, so building it first
+is possible — but the current script builds the saver first, and that order has
+to change.
+
+No CI drift check is needed, unlike the SVGs: the images are regenerated on
+every build, so they cannot fall out of step with the engine.
+
+---
+
+## 8. Files
 
 | File | Change |
 |---|---|
@@ -263,7 +351,8 @@ artwork needs regenerating.
 | `Resources/Uninstall Starfield.command` | **new** — double-click wrapper |
 | `Tools/uninstall-tests.sh` | **new** — destructive-path tests |
 | `Sources/StarfieldView.swift` | `Config.defaultsModuleName`, read by the view |
-| `Tools/Render/main.swift` | write to a scratch domain |
+| `Tools/Render/main.swift` | write to a scratch domain; add `--thumbnail <dir>` |
+| `build.sh` | **reordered** — Render before the saver, thumbnails into `Resources` before signing |
 | `build.sh` | build/run the uninstaller tests beside `EngineTests` |
 | `.github/workflows/ci.yml` | same, if not already covered via `build.sh` |
 | `.github/workflows/release.yml` | staged zip layout; update the round-trip check and notes |
@@ -274,18 +363,28 @@ artwork needs regenerating.
 
 ---
 
-## 8. Sequence
+## 9. Branch and sequence
 
-Four commits, tag last, stopping before the tag for review.
+Work happens on a branch off `main` — proposed name **`v1.1.0`**, since this is
+a release-scoped batch rather than one feature. Landed with `--no-ff` when
+done, then tagged on `main`: merge first, tag second, for the reasons in
+`HANDOFF.md`.
 
-1. **`Render` and `Config`** — smallest, independent, verifiable alone.
+Six commits, stopping before the tag for review.
+
+0. **Verify the thumbnail convention still works** (§7). No commit — a throwaway
+   check. If it fails, §7 is replanned before anything else is written.
+1. **`Render` and `Config`** — the settings fix. Smallest, independent,
+   verifiable alone.
 2. **`uninstall.sh` and its tests** — the substance.
 3. **`.command`, release packaging, README** — the shipping surface.
-4. **Version bump and handoff**, then `git tag v1.1.0`.
+4. **Thumbnail generation and the `build.sh` reorder** — kept separate because
+   it touches signing order, which is where a mistake would be silent.
+5. **Version bump and handoff**, then merge, then `git tag v1.1.0`.
 
 ---
 
-## 9. Risks, and what will still be unverified
+## 10. Risks, and what will still be unverified
 
 - **`--all-users` will get the least real-world exercise.** Nothing in this
   project ever installs to `/Library`; the README only ever uses `~/Library`.
@@ -299,5 +398,11 @@ Four commits, tag last, stopping before the tag for review.
 - **The `.command` double-click path cannot be tested in CI.** It needs Finder
   and Terminal. CI can check the file exists, is executable, and passes
   `bash -n`; the actual double-click needs a human.
+- **The thumbnail convention is unconfirmed for third-party savers** (§7), and
+  everything in that section depends on it. Deliberately the first thing
+  checked, before any of it is written.
+- **Thumbnail legibility is a judgement call made at 90 pixels.** Whether the
+  trail composite reads better than a single frame cannot be settled by a test;
+  it needs looking at, in the actual Screen Saver pane, at actual size.
 - **Nobody has run any of this on macOS 13, 14 or 15**, which is the standing
   caveat for the whole project.

@@ -96,7 +96,7 @@ Working documents:
 |---|---|
 | `aingineering/AING-0001-ci-and-distribution.md` | CI, universal builds, signing, packaging — researched, now partly implemented |
 | `aingineering/AING-0002-folder-naming-options.md` | the folder-naming long list, and the decision that came from outside it |
-| `aingineering/AING-0003-uninstaller.md` | the uninstaller, planned for v1.1.0 — decided, not implemented |
+| `aingineering/AING-0003-uninstaller.md` | v1.1.0: uninstaller, System Settings thumbnail, and a settings-clobbering fix — decided, not implemented |
 
 New working documents take the next `AING-NNNN` in sequence; numbers are never
 reused.
@@ -209,10 +209,15 @@ rather than waiting on it, which was the right call — the workaround is one
 
 ## Next steps, in the order that makes sense
 
-1. **Build the uninstaller** — planned in full in
-   `aingineering/AING-0003-uninstaller.md`, ships as v1.1.0. Every design
-   question is answered there; it needs implementing, not deciding. Includes a
-   fix for `Render` overwriting the user's real saved settings.
+1. **Build v1.1.0** — planned in full in
+   `aingineering/AING-0003-uninstaller.md`: an uninstaller, a System Settings
+   preview thumbnail, and a fix for `Render` overwriting the user's real saved
+   settings. Every design question is answered there; it needs implementing,
+   not deciding. Work on a branch off `main`, not on `main`.
+
+   Start with step 0 in its §9 — confirm macOS still honours the
+   `Contents/Resources/thumbnail.png` convention for third-party savers. The
+   whole thumbnail section rests on it and it is a five-minute check.
 2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.

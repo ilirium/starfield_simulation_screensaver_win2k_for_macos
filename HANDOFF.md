@@ -123,16 +123,20 @@ Sources/              engine (pure Int math), view (AppKit), config sheet, previ
 Tools/Render/         offscreen renderer + SVG generator
 Tools/LoadTest/       bundle verification
 Tools/EngineTests/    engine test suite, framework-free
+Tools/Thumbnail/      System Settings preview images, engine + CoreGraphics only
+Tools/uninstall-tests.sh  hermetic tests for uninstall.sh
 Tools/pe-imports.py   PE import-table dumper, how the teardown started
 Resources/            Info.plist (NSPrincipalClass = StarfieldView)
+packaging/            "Uninstall Starfield.command", ships in the zip only
 docs/                 the four technical documents
 docs/assets/          the two README SVGs (generated, do not hand-edit)
 aingineering/         working documents, AING-NNNN
 .github/workflows/    ci.yml, release.yml
 ```
 
-The root holds `README.md` (front page), this file, `CLAUDE.md` (which must
-stay there, by harness convention) and `LICENSE`.
+The root holds `README.md` (front page), `CHANGELOG.md` (what changed in each
+release), this file, `CLAUDE.md` (which must stay there, by harness convention),
+`LICENSE`, and `uninstall.sh`.
 
 Documentation, in reading order:
 

@@ -69,11 +69,26 @@ jobs:
           set -euo pipefail
           ARCHIVE="Starfield-${{ steps.version.outputs.version }}.zip"
 
+          # Stage an unversioned folder. The version belongs in the archive
+          # filename, not in a path users are told to cd into -- a versioned
+          # folder goes stale in every instruction the moment the next release
+          # ships.
+          STAGE=Starfield
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          ditto build/Starfield.saver "$STAGE/Starfield.saver"
+
+          # The uninstaller also ships inside the bundle, so it survives the
+          # download being deleted. This copy is for people who still have it.
+          cp uninstall.sh "$STAGE/uninstall.sh"
+          cp "packaging/Uninstall Starfield.command" "$STAGE/Uninstall Starfield.command"
+          chmod 755 "$STAGE/uninstall.sh" "$STAGE/Uninstall Starfield.command"
+
           # ditto, not zip. A .saver is a bundle -- a directory -- and ditto is
           # the tool that preserves the extended attributes and layout the code
           # signature is computed over. Verified: the signature survives this
           # round-trip and codesign --verify --deep --strict still passes.
-          ditto -c -k --keepParent build/Starfield.saver "$ARCHIVE"
+          ditto -c -k --keepParent "$STAGE" "$ARCHIVE"
 
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
           echo "sha=$(shasum -a 256 "$ARCHIVE" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
@@ -87,8 +102,22 @@ jobs:
           set -euo pipefail
           mkdir -p roundtrip
           ditto -x -k "${{ steps.package.outputs.archive }}" roundtrip
-          codesign --verify --deep --strict --verbose=2 roundtrip/Starfield.saver
-          ./build/LoadTest roundtrip/Starfield.saver
+          codesign --verify --deep --strict --verbose=2 roundtrip/Starfield/Starfield.saver
+          ./build/LoadTest roundtrip/Starfield/Starfield.saver
+
+          # The .command wrapper invokes ./uninstall.sh, so the executable bit
+          # has to survive git, ditto -c -k and ditto -x -k. If it does not, the
+          # only no-terminal uninstall route is broken for everyone.
+          for f in "roundtrip/Starfield/uninstall.sh" "roundtrip/Starfield/Uninstall Starfield.command"; do
+            [ -x "$f" ] || { echo "::error::$f lost its executable bit in the archive"; exit 1; }
+          done
+
+          # The thumbnails must survive packing too: they are what the Screen
+          # Saver pane shows, and a missing one fails silently.
+          for f in thumbnail.png thumbnail@2x.png uninstall.sh; do
+            [ -e "roundtrip/Starfield/Starfield.saver/Contents/Resources/$f" ] \
+              || { echo "::error::Resources/$f missing from the packaged bundle"; exit 1; }
+          done
 
       - name: Write the release notes
         run: |
@@ -97,17 +126,47 @@ jobs:
 
           ## Install
 
-          Download `Starfield-VERSION.zip` below and unzip it, then **either**:
+          Download `Starfield-VERSION.zip` below and unzip it. You get a
+          `Starfield` folder holding the saver and an uninstaller. Then
+          **either**:
 
-          **Double-click `Starfield.saver`.** macOS offers to install it and
-          opens System Settings at the Screen Saver pane.
+          **Double-click `Starfield/Starfield.saver`.** macOS offers to install
+          it and opens System Settings at the Screen Saver pane.
 
           **Or install it by hand:**
 
           ```sh
+          cd Starfield
           xattr -dr com.apple.quarantine Starfield.saver
           cp -R Starfield.saver ~/Library/"Screen Savers"/
           ```
+
+          ### Upgrading from an earlier version
+
+          System Settings caches the Screen Saver pane's preview tiles, and
+          nothing about replacing the saver invalidates that cache — not new
+          contents, not a new version number. If the pane still shows the old
+          thumbnail after upgrading, run:
+
+          ```sh
+          ~/Library/"Screen Savers"/Starfield.saver/Contents/Resources/uninstall.sh --refresh-preview
+          ```
+
+          A fresh install on a machine that never had Starfield is unaffected.
+
+          ## Uninstall
+
+          Double-click `Starfield/Uninstall Starfield.command`, or run the
+          uninstaller that ships inside the installed bundle:
+
+          ```sh
+          ~/Library/"Screen Savers"/Starfield.saver/Contents/Resources/uninstall.sh
+          ```
+
+          It takes `--dry-run` to show what it would remove, and
+          `--keep-settings` to keep your density and warp speed. If you no
+          longer have either copy, the README lists the files to remove by
+          hand.
 
           ### If macOS refuses to open it
 

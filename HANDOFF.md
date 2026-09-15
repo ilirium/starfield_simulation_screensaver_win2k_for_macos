@@ -18,11 +18,10 @@ change committed when this was written.
 
 **v1.1.0 is planned but not started.** No code has been written for it — the
 branch carries planning documents only. Implement
-`aingineering/AING-0005-uninstaller-revised.md`; it is self-contained.
-
-**One thing is mid-flight and needs a human, not a tool.** See "In-flight: step
-0" below before building anything, because a modified bundle is installed on
-this machine that `build.sh` did not produce.
+`aingineering/AING-0005-uninstaller-revised.md` **together with**
+`aingineering/AING-0006-thumbnail-cache.md`, which amends four of its sections
+after step 0 turned up two gaps — one of them serious enough to change what the
+uninstaller deletes. Nothing is mid-flight; the machine is reconciled.
 
 Read `CLAUDE.md` first, then `docs/NOTES.md` before touching
 `Sources/StarfieldEngine.swift` — the integer math there is deliberately
@@ -32,47 +31,49 @@ is every step.
 
 ---
 
-### In-flight: step 0 of the v1.1.0 plan
+### Step 0: passed, and what it cost to find out
 
-AING-0005 §5 rests on an unconfirmed claim — that macOS still finds a saver's
-preview image at `Contents/Resources/thumbnail.png`, a filename convention with
-no `Info.plist` key, for *third-party* legacy savers. `Random.saver` does it
-this way; it is Apple's own, and the convention predates System Settings.
+**`Contents/Resources/thumbnail.png` / `thumbnail@2x.png` is still honoured for
+third-party legacy savers** on macOS 26.6.2. AING-0005 §5 proceeds as written.
+XScreenSaver ships the same convention in 289 bundles, which is independent
+third-party precedent.
 
-Step 0 was set up and **the answer was never reported**:
+It nearly returned the wrong answer. The pane showed a generic swirl — and that
+was **a stale cache**, not a dead convention. Believing the tile would have
+replanned §5 for nothing.
 
-- `~/Library/Screen Savers/Starfield.saver` — **the installed copy** — carries
-  deliberately garish **magenta** test thumbnails (90×58 and 180×116, white bar
-  across the middle), added by hand and re-signed. Signature verifies.
-- `build/Starfield.saver` does **not**: a later `./build.sh` wiped it, since the
-  script `rm -rf`s the bundle before rebuilding. Only the installed copy is
-  evidence, and running `build.sh` does not disturb it.
-- So the magenta thumbnails exist in exactly one place and nowhere in git. If
-  the installed copy is replaced before the pane is checked, step 0 has to be
-  set up again from scratch.
-- `legacyScreenSaver` was restarted so System Settings would re-read the bundle.
+`aingineering/AING-0006-thumbnail-cache.md` has the full write-up. Two findings
+amend AING-0005 §1, §3, §4 and §5:
 
-**To finish it:** open System Settings → Screen Saver, find Starfield, and see
-which of these is true.
+1. **A tile cache that nothing about the bundle invalidates.** Not changed
+   content, not wholesale replacement, not a version bump — all three were
+   tried. Only clearing
+   `$(getconf DARWIN_USER_CACHE_DIR)com.apple.wallpaper.extension.legacy/com.apple.wallpaper.legacy.thumbnails/`
+   refreshes it. **Consequence: v1.1.0 ships a thumbnail and existing v1.0.0
+   users keep seeing the old tile.** No supported invalidation API exists;
+   XScreenSaver has no answer to this either.
+2. **The saver's real settings live in the sandbox container**, at
+   `~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Preferences/ByHost/`
+   — *not* where AING-0005 §1 measured them, and `defaults -currentHost` cannot
+   see them. **The uninstaller as planned would delete the wrong copy and leave
+   the user's real settings behind.** This machine has both copies with
+   different values (container 200/8, non-container 120/5). The brew uninstall
+   of XScreenSaver left 4 orphaned `org.jwz.*` plists in the container for
+   exactly this reason, so the bug is demonstrated, not predicted.
 
-| Seen | Means |
-|---|---|
-| magenta rectangle with a white bar | convention works; §5 proceeds as planned |
-| the previous generic fallback | convention is dead for third-party savers; §5 needs replanning |
-| a live-animating starfield | System Settings renders live and ignores static thumbnails; also a replan |
+The useful oracle for rechecking any of this without eyeballing a tile: a
+thumbnail that was actually read produces a **180×116** cache entry; anything
+else lands at **214×130**.
 
-**Then reconcile the machine**, because that installed bundle is out-of-band —
-deliberate, uncommitted, and not reproducible from `build.sh` as it stands:
+Step 0 also established, and it remains true: adding files to
+`Contents/Resources` invalidates the signature (`codesign --verify` → "a sealed
+resource is missing or invalid"), and re-signing seals them in. So AING-0005's
+build reorder is genuinely required, not defensive.
 
-```sh
-./build.sh && cp -R build/Starfield.saver ~/Library/"Screen Savers"/
-```
-
-What step 0 *did* already establish, and is worth keeping either way: adding
-files to `Contents/Resources` invalidates the signature
-(`codesign --verify` → "a sealed resource is missing or invalid"), and
-re-signing seals them in. So AING-0005's build reorder is genuinely required,
-not defensive.
+**The machine is reconciled.** `~/Library/Screen Savers/Starfield.saver` is
+byte-identical to `build/Starfield.saver` (v1.0.0, no thumbnails), and the tile
+cache was cleared afterwards so the pane is not showing artwork that exists
+nowhere on disk.
 
 ---
 
@@ -151,7 +152,8 @@ Working documents:
 | `aingineering/AING-0002-folder-naming-options.md` | the folder-naming long list, and the decision that came from outside it |
 | `aingineering/AING-0003-uninstaller.md` | v1.1.0 plan, **superseded**. Kept as the record of what was first proposed |
 | `aingineering/AING-0004-plan-review.md` | two independent reviews of AING-0003; 16 findings, 3 structural |
-| `aingineering/AING-0005-uninstaller-revised.md` | **the plan to implement.** Self-contained; supersedes AING-0003 |
+| `aingineering/AING-0005-uninstaller-revised.md` | **the plan to implement.** Supersedes AING-0003 — but read AING-0006 beside it |
+| `aingineering/AING-0006-thumbnail-cache.md` | step 0's result, plus two gaps it uncovered; amends AING-0005 §1, §3, §4, §5 |
 
 New working documents take the next `AING-NNNN` in sequence; numbers are never
 reused.
@@ -271,17 +273,18 @@ rather than waiting on it, which was the right call — the workaround is one
 ## Next steps, in the order that makes sense
 
 1. **Build v1.1.0** — an uninstaller, a System Settings preview thumbnail, and
-   a fix for `Render` overwriting the user's real saved settings. Every design
-   question is answered; it needs implementing, not deciding. Work on the branch
+   a fix for `Render` overwriting a saved-settings store. Work on the branch
    `uninstaller-and-a-few-fixes`, off `main`.
 
-   **Implement `AING-0005-uninstaller-revised.md`** — it is self-contained and
-   supersedes AING-0003. Read AING-0004 only for why the plan changed.
+   **Implement `AING-0005-uninstaller-revised.md`**, which supersedes AING-0003,
+   **with `AING-0006-thumbnail-cache.md` open beside it** — AING-0006 amends §1,
+   §3, §4 and §5. Read AING-0004 only for why the plan changed.
 
-   Start with its step 0 (§7): confirm macOS still honours the
-   `Contents/Resources/thumbnail.png` convention for third-party savers. §5
-   rests entirely on it and it is a five-minute check needing a human to look
-   at the Screen Saver pane.
+   Its step 0 (§7) is **done and passed**: the thumbnail convention holds. Three
+   decisions are open rather than settled — AING-0006 §5 (does the uninstaller
+   clear the tile cache), §6 (how upgraders get a non-stale tile), and §7 (the
+   sandbox-container preferences, which changes what the uninstaller deletes and
+   narrows §4's premise).
 2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.
@@ -300,6 +303,17 @@ rather than waiting on it, which was the right call — the workaround is one
 
 Claims in this repository that are reasoned but **not verified**:
 
+- **Whether `defaults -currentHost delete` can reach the sandbox-container
+  domain at all.** It cannot *read* it — `defaults -currentHost read
+  com.ilirium.Starfield` returns the non-container values — but deletion was
+  not tried. AING-0006 §7 depends on the answer: if it cannot, removal there is
+  file-only, and the live-client ordering in AING-0005 §2.1 matters more.
+- **How long a stale tile-cache entry survives on its own.** `/var/folders` is
+  cleaned periodically, so the staleness is presumably not permanent, but the
+  eviction interval was never measured. Do not lean on it.
+- **What the 214×130 tiles actually are.** "Generic fallback" is the obvious
+  reading and it is unproven — all ten are distinct images. Nothing in the plan
+  depends on it; the 180×116 bucket is the oracle that matters.
 - **Whether the saver actually *runs* on macOS 13, 14 or 15.** CI now builds
   and loads it on 14, 15 and latest, which is a real narrowing of this gap —
   but loading a bundle is not running a screen saver. macOS 14 restructured the

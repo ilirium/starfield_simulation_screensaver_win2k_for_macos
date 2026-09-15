@@ -10,18 +10,16 @@ state of play.
 
 ```sh
 git branch --show-current     # expect: uninstaller-and-a-few-fixes
-./build.sh                    # builds everything, runs 103 engine tests + LoadTest
+./build.sh                    # builds everything; 103 engine + 57 uninstaller checks, then LoadTest
 ```
 
-If `build.sh` passes, v1.0.0 is healthy. The working tree was clean and every
-change committed when this was written.
+If `build.sh` passes, the tree is healthy. It was clean and every change
+committed when this was written.
 
-**v1.1.0 is planned but not started.** No code has been written for it — the
-branch carries planning documents only. Implement
-`aingineering/AING-0005-uninstaller-revised.md` **together with**
-`aingineering/AING-0006-thumbnail-cache.md`, which amends four of its sections
-after step 0 turned up two gaps — one of them serious enough to change what the
-uninstaller deletes. Nothing is mid-flight; the machine is reconciled.
+**v1.1.0 is built and not yet released.** All five commits from
+`aingineering/AING-0005-uninstaller-revised.md` §7 are done, with the
+amendments from `aingineering/AING-0006-thumbnail-cache.md`. What remains is
+landing and tagging — see "Landing v1.1.0" below. Nothing is mid-flight.
 
 Read `CLAUDE.md` first, then `docs/NOTES.md` before touching
 `Sources/StarfieldEngine.swift` — the integer math there is deliberately
@@ -31,49 +29,72 @@ is every step.
 
 ---
 
-### Step 0: passed, and what it cost to find out
+### Landing v1.1.0
 
-**`Contents/Resources/thumbnail.png` / `thumbnail@2x.png` is still honoured for
-third-party legacy savers** on macOS 26.6.2. AING-0005 §5 proceeds as written.
-XScreenSaver ships the same convention in 289 bundles, which is independent
-third-party precedent.
+Nothing is pushed by this project's convention; pushing is done by hand.
 
-It nearly returned the wrong answer. The pane showed a generic swirl — and that
-was **a stale cache**, not a dead convention. Believing the tile would have
-replanned §5 for nothing.
+1. **Date the changelog.** `CHANGELOG.md`'s 1.1.0 heading says *unreleased*.
+   Replace that with the release date at tag time, so it cannot go quietly
+   stale if tagging slips.
+2. **Merge to `main` with `--no-ff`**, so the branch's commits stay grouped as
+   one piece of work rather than strung along main's first-parent path.
+3. **Then tag.** Merge first, tag second: a tag is a claim that the commit is
+   mainline state, and tagging a branch tip leaves the released commit
+   unreachable from `main`.
 
-`aingineering/AING-0006-thumbnail-cache.md` has the full write-up. Two findings
-amend AING-0005 §1, §3, §4 and §5:
+```sh
+git checkout main && git merge --no-ff uninstaller-and-a-few-fixes
+git tag v1.1.0 && git push origin main v1.1.0
+```
 
-1. **A tile cache that nothing about the bundle invalidates.** Not changed
-   content, not wholesale replacement, not a version bump — all three were
-   tried. Only clearing
-   `$(getconf DARWIN_USER_CACHE_DIR)com.apple.wallpaper.extension.legacy/com.apple.wallpaper.legacy.thumbnails/`
-   refreshes it. **Consequence: v1.1.0 ships a thumbnail and existing v1.0.0
-   users keep seeing the old tile.** No supported invalidation API exists;
-   XScreenSaver has no answer to this either.
-2. **The saver's real settings live in the sandbox container**, at
-   `~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Preferences/ByHost/`
-   — *not* where AING-0005 §1 measured them, and `defaults -currentHost` cannot
-   see them. **The uninstaller as planned would delete the wrong copy and leave
-   the user's real settings behind.** This machine has both copies with
-   different values (container 200/8, non-container 120/5). The brew uninstall
-   of XScreenSaver left 4 orphaned `org.jwz.*` plists in the container for
-   exactly this reason, so the bug is demonstrated, not predicted.
+`release.yml` refuses to publish if the tag disagrees with
+`CFBundleShortVersionString`, which is now **1.1.0** (`CFBundleVersion` 2).
 
-The useful oracle for rechecking any of this without eyeballing a tile: a
-thumbnail that was actually read produces a **180×116** cache entry; anything
-else lands at **214×130**.
+**Local `main` is behind `origin/main`, or was.** At the time of writing local
+`main` sat three commits *ahead* of `origin/main` — `12cbd24`, `fd75db8`,
+`52855f9` — despite an earlier version of this file claiming everything was
+pushed. Check before merging.
 
-Step 0 also established, and it remains true: adding files to
-`Contents/Resources` invalidates the signature (`codesign --verify` → "a sealed
-resource is missing or invalid"), and re-signing seals them in. So AING-0005's
-build reorder is genuinely required, not defensive.
+---
 
-**The machine is reconciled.** `~/Library/Screen Savers/Starfield.saver` is
-byte-identical to `build/Starfield.saver` (v1.0.0, no thumbnails), and the tile
-cache was cleared afterwards so the pane is not showing artwork that exists
-nowhere on disk.
+### What v1.1.0 contains
+
+Three features and a set of findings that changed two of them.
+
+| | |
+|---|---|
+| **An uninstaller** | `uninstall.sh`, shipped inside the bundle, in the zip, and as raw commands in the README |
+| **A preview thumbnail** | generated at build time by `Tools/Thumbnail` from the engine, committed nowhere |
+| **A `Render` fix** | it no longer writes to a real settings store |
+
+Full reasoning in AING-0005 and AING-0006; the narrative versions, with the
+wrong turns, are `docs/UNINSTALLING.md` and `docs/THUMBNAIL.md`.
+
+**Step 0 passed.** The `Contents/Resources/thumbnail.png` convention is still
+honoured for third-party legacy savers on macOS 26.6.2 — and all 289
+XScreenSaver bundles use it, which is independent precedent.
+
+It nearly returned the wrong answer. The pane showed a generic swirl, which was
+**a stale cache**, not a dead convention. Believing the tile would have
+replanned the feature away.
+
+Two findings came out of chasing that, and both are now implemented:
+
+1. **A tile cache that nothing about the bundle invalidates** — not changed
+   contents, not wholesale replacement, not a version bump; all three were
+   tested. There is no supported invalidation call. Hence
+   `./uninstall.sh --refresh-preview`, which **anyone upgrading from 1.0.0
+   needs once** or the pane keeps showing the old tile. Documented in the
+   README and in the generated release notes.
+2. **The saver's real settings live in the sandbox container**, which
+   `defaults -currentHost` cannot see. An uninstaller sweeping only the visible
+   path deletes a decoy. `uninstall.sh` sweeps both. Homebrew's XScreenSaver
+   uninstaller has this bug and left four orphans on this machine, so it is
+   demonstrated rather than predicted.
+
+The oracle for rechecking any of this without eyeballing a tile: a thumbnail
+that was actually read produces a **180×116** cache entry; anything else lands
+at **214×130**.
 
 ---
 
@@ -88,16 +109,22 @@ A macOS screen saver reproducing the Windows 2000 "Starfield Simulation"
 cp -R build/Starfield.saver ~/Library/"Screen Savers"/
 ```
 
-`build.sh` produces five things and runs two of them, so a broken build fails
+`build.sh` produces six things and runs three suites, so a broken build fails
 loudly rather than at screen-blank time:
 
 | | |
 |---|---|
-| `build/Starfield.saver` | the plugin, ad-hoc signed, arm64, macOS 13.0+ |
+| `build/Starfield.saver` | the plugin, ad-hoc signed, arm64, macOS 13.0+; carries the thumbnails and the uninstaller |
 | `build/StarfieldPreview` | the saver in a normal window; `[density] [warp]` |
 | `build/Render` | offscreen PNG frames; `--svg docs/assets` regenerates the README art |
+| `build/Thumbnail` | the two System Settings preview images; engine + CoreGraphics, no AppKit |
 | `build/LoadTest` | loads a `.saver` as macOS does; non-zero exit on failure |
 | `build/EngineTests` | 103 checks against the disassembly; no AppKit, runs headless |
+| `Tools/uninstall-tests.sh` | 57 hermetic checks over `uninstall.sh` |
+
+The step order matters: everything that ships inside the bundle is copied into
+`Contents/Resources` **before** signing, and the seal is verified afterwards.
+Adding a file to a signed bundle fails silently until macOS refuses to load it.
 
 Command Line Tools are sufficient. There is no Xcode project, no package
 manifest, no dependencies.
@@ -112,7 +139,13 @@ Releases are tag-triggered: `git tag v1.2.3 && git push origin v1.2.3` builds,
 packs the bundle with `ditto`, re-verifies the *unpacked archive* rather than
 the bundle that was never packed, and publishes with generated install notes
 and a checksum. It refuses to publish if the tag disagrees with
-`CFBundleShortVersionString`. **v1.0.0 is published**, unsigned.
+`CFBundleShortVersionString`. **v1.0.0 is published**, unsigned; **1.1.0 is
+built and waiting to be tagged**.
+
+The zip now stages an unversioned `Starfield/` folder holding the saver,
+`uninstall.sh` and `Uninstall Starfield.command`. The round-trip check verifies
+the signature, both executable bits and the three sealed resources survive
+packing.
 
 ---
 
@@ -152,15 +185,18 @@ Working documents:
 
 | | |
 |---|---|
+| `aingineering/README.md` | **index**: one line on each document, and which are superseded |
 | `aingineering/AING-0001-ci-and-distribution.md` | CI, universal builds, signing, packaging — researched, now partly implemented |
 | `aingineering/AING-0002-folder-naming-options.md` | the folder-naming long list, and the decision that came from outside it |
 | `aingineering/AING-0003-uninstaller.md` | v1.1.0 plan, **superseded**. Kept as the record of what was first proposed |
 | `aingineering/AING-0004-plan-review.md` | two independent reviews of AING-0003; 16 findings, 3 structural |
-| `aingineering/AING-0005-uninstaller-revised.md` | **the plan to implement.** Supersedes AING-0003 — but read AING-0006 beside it |
-| `aingineering/AING-0006-thumbnail-cache.md` | step 0's result, plus two gaps it uncovered; amends AING-0005 §1, §3, §4, §5 |
+| `aingineering/AING-0005-uninstaller-revised.md` | the v1.1.0 plan, **implemented**. Supersedes AING-0003 |
+| `aingineering/AING-0006-thumbnail-cache.md` | step 0's result and two gaps it uncovered, **implemented**; amends AING-0005 §1, §3, §4, §5 |
 
 New working documents take the next `AING-NNNN` in sequence; numbers are never
-reused.
+reused, and a plan is never amended in place — a revision gets a new number.
+Each document's own `Status:` line is therefore frozen at the time of writing;
+`aingineering/README.md` carries the current state.
 
 ---
 
@@ -170,17 +206,28 @@ v1.0.0 work is **merged into `main`**. The repository is **public**,
 MIT-licensed, and `v1.0.0` is tagged and released.
 
 Current work is on **`uninstaller-and-a-few-fixes`**, branched from `main` at
-`52855f9`, two commits ahead — **planning documents only, no code**:
+`52855f9`, ten commits ahead — **v1.1.0, complete and unreleased**:
 
 ```
+e656c19  Write up the uninstaller and the thumbnail
+0a460ec  Package the uninstaller, and add a changelog      <- plan commit 4
+107189f  Generate the System Settings thumbnail, and reorder the build   <- 3
+94483e9  Add the uninstaller, with tests                   <- 2
+07f2319  Stop Render writing to the real settings store    <- 1
+8c88476  Answer step 0, and record the two gaps it uncovered
+41d7322  Correct where the step 0 evidence actually lives
+e4c5b3b  Prepare the handoff for a fresh session
 3cfee82  Revise the v1.1.0 plan as AING-0005
 8a8c8f8  Review AING-0003 twice, independently
 ```
 
-Note the v1.1.0 documents are split across both: AING-0003 and the branch-name
-decision landed on `main` before the branch was cut; AING-0004 and AING-0005 are
-on the branch. Nothing is lost either way, but `main` alone shows a superseded
-plan with no review and no revision beside it.
+Plus this commit, which is AING-0005 §7's commit 5: the version bump to 1.1.0,
+`CLAUDE.md`, and this file.
+
+Note the v1.1.0 documents are split across `main` and the branch: AING-0003 and
+the branch-name decision landed on `main` before the branch was cut; AING-0004
+onwards are on the branch. Nothing is lost either way, but `main` alone shows a
+superseded plan with no review and no revision beside it.
 
 Tip of `main` is `52855f9`; `v1.0.0` is tagged at `1e6d304`. Shape:
 
@@ -276,19 +323,8 @@ rather than waiting on it, which was the right call — the workaround is one
 
 ## Next steps, in the order that makes sense
 
-1. **Build v1.1.0** — an uninstaller, a System Settings preview thumbnail, and
-   a fix for `Render` overwriting a saved-settings store. Work on the branch
-   `uninstaller-and-a-few-fixes`, off `main`.
-
-   **Implement `AING-0005-uninstaller-revised.md`**, which supersedes AING-0003,
-   **with `AING-0006-thumbnail-cache.md` open beside it** — AING-0006 amends §1,
-   §3, §4 and §5. Read AING-0004 only for why the plan changed.
-
-   Its step 0 (§7) is **done and passed**: the thumbnail convention holds. Three
-   decisions are open rather than settled — AING-0006 §5 (does the uninstaller
-   clear the tile cache), §6 (how upgraders get a non-stale tile), and §7 (the
-   sandbox-container preferences, which changes what the uninstaller deletes and
-   narrows §4's premise).
+1. **Land and tag v1.1.0.** The work is done; see "Landing v1.1.0" above. Date
+   the changelog, merge `--no-ff`, then tag.
 2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.

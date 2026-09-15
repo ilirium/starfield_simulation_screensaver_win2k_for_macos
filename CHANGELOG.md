@@ -7,9 +7,11 @@ release date. Each entry says what changed and, where it is not obvious, why —
 the reasoning usually lives in `aingineering/AING-NNNN`, which is linked rather
 than repeated.
 
-## [Unreleased]
+## [1.1.0] — unreleased
 
-Work for 1.1.0, on the `uninstaller-and-a-few-fixes` branch. Not released.
+Built and complete on the `uninstaller-and-a-few-fixes` branch; not yet merged
+or tagged. **Replace "unreleased" with the date when the tag is pushed** — it
+is written this way so it cannot quietly show a date that never happened.
 
 ### Added
 
@@ -131,5 +133,5 @@ behaviour, with the disassembly that justifies it written down.
 - **Multi-monitor behaviour is untested.**
 - **No preview thumbnail** in the Screen Saver pane. Fixed in 1.1.0.
 
-[Unreleased]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/compare/v1.0.0...HEAD
+[1.1.0]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/releases/tag/v1.0.0

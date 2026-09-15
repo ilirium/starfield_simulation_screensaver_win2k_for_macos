@@ -6,6 +6,21 @@ Updated 2026-09-15.
 `CLAUDE.md` tells a new session how to work in the repo. This file is the
 state of play.
 
+### Starting cold
+
+```sh
+./build.sh          # builds everything, runs 103 engine tests + LoadTest
+```
+
+If that passes, the project is healthy and nothing is half-finished. The
+working tree was clean and every change committed when this was written.
+
+Read `CLAUDE.md` first, then `docs/NOTES.md` before touching
+`Sources/StarfieldEngine.swift` — the integer math there is deliberately
+faithful to a disassembled binary, and several things that look like defects
+are not. `git log --first-parent main` is the short history; plain `git log`
+is every step.
+
 ---
 
 ## What exists and works
@@ -35,6 +50,9 @@ manifest, no dependencies.
 
 CI runs all of this on every push and pull request across `macos-14`,
 `macos-15` and `macos-latest`. **All six jobs pass**, in about 55 seconds.
+
+Both workflows pin `actions/checkout` and `actions/upload-artifact` at **v7**;
+v4 was warned off the deprecated Node 20 runtime during the first release run.
 
 Releases are tag-triggered: `git tag v1.2.3 && git push origin v1.2.3` builds,
 packs the bundle with `ditto`, re-verifies the *unpacked archive* rather than
@@ -86,24 +104,37 @@ reused.
 
 ## Git state
 
-Work is on **`macos-port`**, twelve commits, rebased onto `main` so history is
-linear. The repository is **public** and MIT-licensed.
+All work is **merged into `main`**. The repository is **public**, MIT-licensed,
+and `v1.0.0` is tagged and released.
+
+Current tip of `main` is `23dbd49`. Shape:
 
 ```
-(this one) CI results recorded
-9b52180  handoff brought up to date
-545bb68  CI: engine tests and build, across three runner images
-7cfa8e2  deployment floor 13.0, ARCHS and MIN_MACOS
-413c726  engine tests
-19c3948  docs/, docs/assets/, aingineering/
-d7ea017  handoff, tool rescue, reproducible artwork
-3344a4e  CI and distribution research, folder naming options
-b48b4fe  the third GDI import, and a real README
-2da4cc8  Win32 primer
-b2aba45  teardown and port documentation
-5ad0262  the port itself
-56cc1f7  MIT License          <- was on main alone
+* 23dbd49  Record the 1.0.0 release
+* 00101f3  Bump the actions off the deprecated Node 20 runtime
+* 1e6d304  Correct how the branch landed          <- v1.0.0 tag
+*   d63fcab  Merge the macOS port
+|\
+| * 741b4ad  release automation + install instructions
+| * eae8b8e  first CI run recorded
+| * 9b52180  handoff brought up to date
+| * 545bb68  CI: engine tests and build
+| * 7cfa8e2  deployment floor 13.0, ARCHS and MIN_MACOS
+| * 413c726  engine tests
+| * 19c3948  docs/, docs/assets/, aingineering/
+| * d7ea017  handoff, tool rescue, reproducible artwork
+| * 3344a4e  CI and distribution research, folder naming options
+| * b48b4fe  the third GDI import, and a real README
+| * 2da4cc8  Win32 primer
+| * b2aba45  teardown and port documentation
+| * 5ad0262  the port itself
+|/
+* 56cc1f7  MIT License
+* 0069a37  Initial commit
 ```
+
+`macos-port` still exists and points at `741b4ad`, inside the merge. It can be
+deleted, or reused — new work is cleaner on a fresh branch off `main`.
 
 **Landed on `main`** on 2026-09-15 via a `--no-ff` merge commit, so the branch
 commits stay grouped as one piece of work rather than strung along main's

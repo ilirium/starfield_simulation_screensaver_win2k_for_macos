@@ -41,9 +41,15 @@ this way; it is Apple's own, and the convention predates System Settings.
 
 Step 0 was set up and **the answer was never reported**:
 
-- `build/Starfield.saver` and `~/Library/Screen Savers/Starfield.saver` both
-  carry deliberately garish **magenta** test thumbnails (90×58 and 180×116,
-  white bar across the middle), added by hand and re-signed.
+- `~/Library/Screen Savers/Starfield.saver` — **the installed copy** — carries
+  deliberately garish **magenta** test thumbnails (90×58 and 180×116, white bar
+  across the middle), added by hand and re-signed. Signature verifies.
+- `build/Starfield.saver` does **not**: a later `./build.sh` wiped it, since the
+  script `rm -rf`s the bundle before rebuilding. Only the installed copy is
+  evidence, and running `build.sh` does not disturb it.
+- So the magenta thumbnails exist in exactly one place and nowhere in git. If
+  the installed copy is replaced before the pane is checked, step 0 has to be
+  set up again from scratch.
 - `legacyScreenSaver` was restarted so System Settings would re-read the bundle.
 
 **To finish it:** open System Settings → Screen Saver, find Starfield, and see

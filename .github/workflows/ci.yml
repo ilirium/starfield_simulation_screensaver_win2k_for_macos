@@ -23,7 +23,7 @@ jobs:
       matrix:
         runner: [macos-14, macos-15, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Toolchain
         run: |
@@ -62,7 +62,7 @@ jobs:
       matrix:
         runner: [macos-14, macos-15, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build, test, and load the bundle
         # build.sh runs the engine suite, then LoadTest, which resolves
@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload the built saver
         if: matrix.runner == 'macos-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Starfield.saver
           path: build/Starfield.saver

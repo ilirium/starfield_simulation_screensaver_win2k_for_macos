@@ -50,10 +50,11 @@ git tag v1.1.0 && git push origin main v1.1.0
 `release.yml` refuses to publish if the tag disagrees with
 `CFBundleShortVersionString`, which is now **1.1.0** (`CFBundleVersion` 2).
 
-**Local `main` is behind `origin/main`, or was.** At the time of writing local
-`main` sat three commits *ahead* of `origin/main` — `12cbd24`, `fd75db8`,
-`52855f9` — despite an earlier version of this file claiming everything was
-pushed. Check before merging.
+**Run `git fetch` before comparing branches.** A stale remote-tracking ref made
+local `main` look three commits ahead of `origin/main` during this work; after
+a fetch both were `52855f9`. The divergence was not real, but the check is
+still worth doing — an earlier version of this file claimed everything was
+pushed when it was not.
 
 ---
 

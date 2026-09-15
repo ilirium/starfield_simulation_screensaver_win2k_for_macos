@@ -101,11 +101,14 @@ final class ConfigController: NSObject {
     }
 }
 
-/// The bits of ScreenSaverDefaults the sheet needs, so the same controller can
-/// be driven by plain UserDefaults in the standalone preview app.
+/// The bits of ScreenSaverDefaults the sheet and the view need, so both can be
+/// driven by plain UserDefaults -- by the standalone preview app, and by
+/// Tools/Render, which points the view at a scratch domain rather than the
+/// real one.
 protocol ScreenSaverDefaultsStore: AnyObject {
     func integer(forKey key: String) -> Int
     func set(_ value: Int, forKey key: String)
+    func register(defaults registrationDictionary: [String: Any])
     func synchronize() -> Bool
 }
 

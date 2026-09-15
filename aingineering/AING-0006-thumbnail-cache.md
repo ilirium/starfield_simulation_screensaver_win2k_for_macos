@@ -1,6 +1,7 @@
 # Step 0's answer, and the two gaps it uncovered
 
-Status: **findings confirmed, AING-0005 not yet amended.** Written 2026-09-15,
+Status: **findings confirmed; `--refresh-preview` decided and scheduled.**
+Written 2026-09-15,
 against `aingineering/AING-0005-uninstaller-revised.md` as of commit `41d7322`.
 
 Amends [AING-0005](AING-0005-uninstaller-revised.md) §1, §3, §4 and §5. That
@@ -137,12 +138,15 @@ own entry. The only options are all-or-nothing.
 | **A. Clear the whole directory** | fixes uninstall-then-reinstall; proven regenerable — all 13 tiles came back on the next pane open | discards 12 other savers' tiles; widens the blast radius past §3.3's two permitted path shapes; needs a 4th hermetic override |
 | **B. Leave it, document it** | keeps §3.3's tight rules intact | an orphan entry survives; a reinstall serves a stale tile |
 
-**Recommendation: A, narrowly scoped.** The guard fits §3.3's existing style —
-the directory is addressed via `getconf` and only names matching
-`[0-9a-f]{64}\.png` inside *that exact* directory are removable. The blast
-radius is a regenerable cache in `/var/folders`, and regeneration was
-demonstrated rather than assumed. Add `STARFIELD_THUMBCACHE_DIR` as the fourth
-overridable directory so the hermetic suite covers it.
+**Decided 2026-09-15: B — the normal uninstall run does not touch the cache.**
+Clearing happens only behind the explicit `--refresh-preview` flag (§9).
+
+This keeps §3.3's rule intact: a plain `./uninstall.sh` still removes only the
+two permitted path shapes, and nothing a user did not ask about. The cost is
+accepted — an uninstall leaves a ~30 KB orphan in `/var/folders`, and someone
+who uninstalls and later reinstalls sees a stale tile until they run the flag.
+Both are recoverable; silently clearing twelve other savers' tiles during an
+uninstall is not what the user asked for.
 
 Note this is the *lesser* half of the problem. Uninstall is the rare case; §3
 cannot help the upgrader at all.
@@ -169,7 +173,7 @@ Looked for one, did not find one:
 So the only lever is removing the files. The question is who pulls it and with
 what guards.
 
-### Proposal: one guarded implementation, used from three places
+### Decided: one guarded implementation (full spec in §9)
 
 Write it **once**, as a mode of the uninstaller rather than a command pasted
 into three documents that will drift apart:
@@ -194,13 +198,14 @@ concepts:
 - The fourth overridable directory puts it inside the hermetic suite, so the
   destructive path is tested like the rest.
 
-Then the three callers:
+Then the callers — **two, not three**, per §5's decision:
 
 | Caller | Why |
 |---|---|
-| `uninstall.sh` normal run | clears the orphan; fixes uninstall-then-reinstall |
 | README, beside the install step | the upgrade path — worded so **only** upgraders run it |
 | `release.yml`'s generated notes | reaches the v1.0.0 cohort, who will not re-read the README |
+
+The normal `./uninstall.sh` run is deliberately **not** a caller (§5).
 
 ### Why this is proportionate
 
@@ -267,11 +272,18 @@ sheet. `defaults` cannot see it.
   precise failure the uninstaller exists to prevent.
 - **§2.1's `cfprefsd` finding still stands**, but now has to be applied to the
   container domain as well.
-- **§4's premise is mis-scoped.** `Render` does clobber a settings store, but
-  the non-container one — which the *preview harness* reads and the installed
-  saver does not. The fix is still right and still worth making; the
+- **§4's premise is mis-scoped. Re-measured 2026-09-15, and confirmed.** With
+  the non-container store seeded to a distinctive 77/3, a `Render` run left the
+  container at 200/8 untouched and moved the non-container store to its 120/5.
+  So `Render` clobbers the store the *preview harness* reads, and never the one
+  the installed saver reads. The fix is still right and still worth making; the
   justification "silently overwrites the user's own Density and WarpSpeed"
-  should be narrowed to the preview harness, or the claim re-measured.
+  is narrowed to the preview harness.
+
+  **Trap for whoever re-runs this:** read the value back through `defaults`,
+  not `plutil` on the file. Immediately after `Render` exits the file still
+  shows the old values — `cfprefsd` has not flushed — which reads as "no
+  clobber happened" and is wrong. Same cause as §2.1.
 
 ### This is not theoretical
 
@@ -324,7 +336,70 @@ as a *confirmation* step before removal — read `CFBundleIdentifier` and requir
 
 ---
 
-## 9. State of the machine
+## 9. Spec: `--refresh-preview`
+
+**Decided 2026-09-15.** Implement as part of AING-0005 §7's **commit 2**
+(`uninstall.sh` and its tests); the README and release-note wording lands with
+**commit 4** (packaging).
+
+### Interface
+
+```
+./uninstall.sh --refresh-preview [--dry-run] [-h]
+```
+
+Clears the System Settings tile cache and **nothing else**. Removes no bundle,
+no preferences. Mutually exclusive with `--keep-settings` and `--all-users`;
+combining them is a usage error, not a silent no-op. `--dry-run` lists what
+would be removed and exits 0.
+
+### Behaviour
+
+1. Refuse if `$EUID` is 0, for the same reason §3.3 gives — a root run leaves
+   root-owned files in a user path.
+2. Resolve the directory:
+   ```sh
+   : "${STARFIELD_THUMBCACHE_DIR:=$(getconf DARWIN_USER_CACHE_DIR)com.apple.wallpaper.extension.legacy/com.apple.wallpaper.legacy.thumbnails}"
+   ```
+   This is the **fourth** overridable directory, so hermetic mode covers it.
+3. If the directory does not exist, print so and **exit 0** — not an error.
+4. Remove only entries matching `[0-9a-f]{64}\.png`, directly inside that
+   directory. Anything else is refused loudly. `shopt -s nullglob`, per §3.3's
+   trap.
+5. Outside hermetic mode only: `killall WallpaperLegacyExtension || true`, and
+   advise quitting System Settings, which caches the module list independently.
+
+### Tests (`Tools/uninstall-tests.sh`)
+
+Hermetic, via `STARFIELD_THUMBCACHE_DIR`:
+
+| Case | Expectation |
+|---|---|
+| a populated directory | every `<64 hex>.png` gone |
+| decoys: `notahash.png`, `ABCDEF….png` (uppercase), a subdirectory, a `.txt` | **all survive** |
+| `--dry-run` | nothing removed, exit 0 |
+| directory absent | exit 0, no error |
+| unmatched glob | no path containing `*` reaches `rm` |
+| run as root | refuses |
+| combined with `--all-users` | usage error |
+| **default literal** | asserted textually against the script source, since hermetic mode never executes it — the same technique §3.3 uses for `/Library/Screen Savers` |
+
+### Verification
+
+Use the §2 oracle, not a screenshot: after a refresh, a saver whose bundle
+carries a thumbnail produces a **180x116** cache entry. Scriptable, and it does
+not need a human to judge a tile.
+
+### What this does not solve
+
+Nothing invalidates the cache on its own (§2), so an upgrader who never runs
+the flag keeps the old tile until `/var/folders` is cleaned — an interval this
+document never measured. The flag is a remedy, not a fix; there is no fix to
+have.
+
+---
+
+## 10. State of the machine
 
 Step 0's magenta evidence is **gone** — these experiments overwrote the
 installed bundle with green thumbnails and a 1.1.0 version string. That no

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dump the import table of a 32-bit PE binary, with each function's IAT address.
 
-Written for the ssstars.scr teardown (see TEARDOWN.md sections 3 and 9).
+Written for the ssstars.scr teardown (see docs/TEARDOWN.md sections 3 and 9).
 llvm-objdump --private-headers prints the directory offsets but not the table
 itself, so this walks it directly.
 

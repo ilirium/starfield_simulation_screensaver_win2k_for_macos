@@ -72,7 +72,7 @@ print("wrote single.png and trails.png (\(w)x\(h))")
 ///
 /// No Y flip here: SVG measures Y downward, exactly like Windows GDI, so the
 /// engine's own coordinates go straight through. The macOS view is the odd one
-/// out (see HOW-IT-WORKS.md, "The coordinate flip").
+/// out (see docs/HOW-IT-WORKS.md, "The coordinate flip").
 func makeSVG(width: Int, height: Int, density: Int, warp: Int,
              settle: Int, frames: Int, scale: Double, seed: UInt32) -> String {
     var engine = StarfieldEngine(seed: seed)

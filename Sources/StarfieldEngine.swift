@@ -4,7 +4,7 @@ import Foundation
 /// ("Starfield Simulation", 5.00.2195.6601).
 ///
 /// Every constant here was recovered by disassembling `bin/ssstars.scr`;
-/// see NOTES.md for the address of each one. The integer math is reproduced
+/// see docs/NOTES.md for the address of each one. The integer math is reproduced
 /// exactly, including truncating division, so motion matches the original.
 struct StarfieldEngine {
 

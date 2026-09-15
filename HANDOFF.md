@@ -26,7 +26,7 @@ broken build fails loudly rather than at screen-blank time:
 |---|---|
 | `build/Starfield.saver` | the plugin, ad-hoc signed |
 | `build/StarfieldPreview` | the saver in a normal window; `[density] [warp]` |
-| `build/Render` | offscreen PNG frames, and `--svg docs` regenerates the README art |
+| `build/Render` | offscreen PNG frames, and `--svg docs/assets` regenerates the README art |
 | `build/LoadTest` | loads a `.saver` as macOS does; non-zero exit on failure |
 
 Command Line Tools are sufficient. There is no Xcode project, no package
@@ -50,10 +50,10 @@ Documentation, in reading order:
 | | |
 |---|---|
 | `README.md` | front page: install, build, settings, pointers |
-| `WIN32-PRIMER.md` | how the original and Win32 work; assumes no Windows background |
-| `TEARDOWN.md` | how the binary was disassembled, including the wrong turns |
-| `HOW-IT-WORKS.md` | how the Swift port works; assumes no Swift/AppKit/ObjC |
-| `NOTES.md` | bare reference: every constant with its address |
+| `docs/WIN32-PRIMER.md` | how the original and Win32 work; assumes no Windows background |
+| `docs/TEARDOWN.md` | how the binary was disassembled, including the wrong turns |
+| `docs/HOW-IT-WORKS.md` | how the Swift port works; assumes no Swift/AppKit/ObjC |
+| `docs/NOTES.md` | bare reference: every constant with its address |
 
 Working documents, at the root **temporarily**:
 
@@ -90,7 +90,7 @@ and is Microsoft's; nothing in the build reads it.
   gitignored. The README illustrations are SVG specifically so they stay text.
 - **Fidelity over modernisation.** Truncating integer division, the speed ramp
   inside the per-star loop, the MSVC LCG — all reproduced on purpose.
-  `NOTES.md` lists the four deliberate deviations. Do not "fix" these.
+  `docs/NOTES.md` lists the four deliberate deviations. Do not "fix" these.
 - **20 fps**, matching the original's 50 ms timer. A smooth-motion mode was
   offered and not taken up; it remains available if wanted.
 - **No `Claude-Session` trailer** in commits. Turned off in
@@ -134,7 +134,7 @@ Claims in this repository that are reasoned but **not verified**:
 - **Anything about macOS 13, 14, or 15.** Everything was built and run on
   macOS 26. macOS 14 restructured the screen saver host; this port has only
   ever run under the new arrangement.
-- **Multi-monitor behavior** (`NOTES.md` deviation 4). Follows from the
+- **Multi-monitor behavior** (`docs/NOTES.md` deviation 4). Follows from the
   recovered `GetSystemMetrics` calls on the Windows side and documented macOS
   behavior on the other, but this machine drove one display.
 - **Whether AppKit view instantiation survives a headless CI runner.** Both
@@ -144,7 +144,7 @@ Claims in this repository that are reasoned but **not verified**:
   `.saver`**; **`.pkg` per-user install semantics**. All flagged in the plan.
 
 Things that *were* verified are marked as such, with commands and output, in
-`ci-and-distribution.md`'s appendix and throughout `TEARDOWN.md`.
+`ci-and-distribution.md`'s appendix and throughout `docs/TEARDOWN.md`.
 
 ---
 
@@ -153,7 +153,7 @@ Things that *were* verified are marked as such, with commands and output, in
 Both were stated wrongly earlier and are easy to repeat:
 
 1. **The repository is private, not public.** This weakens the copyright
-   caution about `NOTES.md` — a private repo is not redistribution — and it
+   caution about `docs/NOTES.md` — a private repo is not redistribution — and it
    means GitHub Actions minutes are billed, with macOS runners at 10×.
 2. **The `14.0` deployment target in `build.sh` was arbitrary**, not
    researched. 13.0 is the real floor for a clean build; below that Swift wants
@@ -172,5 +172,5 @@ xcrun llvm-objdump -d --no-show-raw-insn bin/ssstars.scr > dis.txt
 grep '100101c' dis.txt                               # PatBlt call sites
 ```
 
-`TEARDOWN.md` walks the rest. The UTF-16 string extractor is in its §2 — macOS
+`docs/TEARDOWN.md` walks the rest. The UTF-16 string extractor is in its §2 — macOS
 `strings` has no `-el`, which is why one is needed.

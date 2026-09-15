@@ -1,10 +1,14 @@
 # Naming the working-documents folder
 
-Temporary working document. The folder in question will hold plans,
-implementation notes, a backlog, and lessons learned — working material, as
-opposed to the finished write-ups at the repository root.
+Status: **decided — `aingineering/`.** See the closing section for the choice
+and why it beat everything below. The long list is kept as written, because a
+decision is only readable against the alternatives it was made among.
 
-`plans/` was rejected as too narrow. Nothing is decided; this is the long list.
+The folder in question holds plans, implementation notes, a backlog, and
+lessons learned — working material, as opposed to the finished write-ups in
+`docs/` and at the repository root.
+
+`plans/` was rejected as too narrow. What follows was the long list.
 
 ---
 
@@ -153,10 +157,56 @@ If a decision is wanted without reading the whole list:
 
 ---
 
-## Pending
+## Decided: `aingineering/`
 
-- Folder name: **undecided**.
-- `ci-and-distribution.md` sits at the repository root meanwhile, and moves
-  once the name is chosen.
-- `docs/` currently holds only the two README SVGs. If working documents get a
-  home, those may read better in `assets/`, leaving `docs/` free or retired.
+Settled 2026-09-15, by a name that was **not on the list above** — a
+portmanteau of *AI* and *engineering*, sharing the middle syllable.
+
+It is worth recording why it beat a shortlist assembled specifically to find
+the best answer, because the omission is the interesting part. The list was
+built around the five criteria at the top, and `aingineering/` satisfies all
+five: tense-neutral, no collision, no convention freight, fine in public, sorts
+below the root `*.md` files. But it also does something none of the candidates
+could, because the list never thought to ask for it — it says *how* this
+material came to exist. The documents in here are the written residue of
+working with an AI assistant on the port: plans proposed and revised, research
+with its verification attached, decisions with the reasoning that produced
+them. `workshop/` would have described the room. `aingineering/` describes the
+method.
+
+The general lesson, which is the reusable part: a criteria-driven shortlist
+optimizes within the frame it was drawn in. Every candidate above answers
+"what kind of material is this?" None answers "how was it made?" — so no amount
+of ranking the list would have surfaced the winner.
+
+The structure recommendation was also amended. The plan was flat and
+date-prefixed; what was adopted is flat and **sequence-prefixed**,
+`AING-NNNN-slug.md`:
+
+```
+aingineering/AING-0001-ci-and-distribution.md
+aingineering/AING-0002-folder-naming-options.md
+```
+
+This is the numbered variant the list called "the ADR convention without the
+ADR template", with a project-specific prefix so an identifier like AING-0002
+is unambiguous in a commit message or a conversation. Numbers are assigned in
+creation order and never reused. The slug stays because a bare `AING-0002.md`
+is unreadable in a directory listing.
+
+`backlog.md` and `lessons.md` were deferred rather than rejected — creating
+empty files is not organization.
+
+### Consequences
+
+- Both working documents moved here; AING-0001 is no longer at the repository
+  root.
+- `docs/` gained the four technical documents (`WIN32-PRIMER.md`,
+  `TEARDOWN.md`, `HOW-IT-WORKS.md`, `NOTES.md`), and the two README SVGs moved
+  down into `docs/assets/`. So the `assets/` idea floated in this section was
+  adopted, nested under `docs/` rather than at the root.
+- The root now holds `README.md` (front page), `HANDOFF.md` (state of play),
+  `CLAUDE.md` (which must stay there, by harness convention) and `LICENSE`.
+- The `NOTES.md` collision that ruled out `notes/` is now moot — it is
+  `docs/NOTES.md`. The reasoning above is preserved as it was written, not
+  retrofitted.

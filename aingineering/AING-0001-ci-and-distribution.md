@@ -1,10 +1,25 @@
 # Plan: automated builds and distribution
 
-Status: **proposal, nothing implemented.** Research and a recommendation, for
-you to approve, amend, or reject before any workflow file is written.
+Status: **decided and partly implemented.** The research and recommendations
+below stand as written; the answers they were waiting on are recorded in
+"Decisions taken" immediately after this, and §7 has them in full.
 
-Living at the repository root temporarily. It moves into a working-documents
-folder once that folder has a name — see `folder-naming-options.md`.
+Lives in `aingineering/` as AING-0001. The folder question that once blocked
+this document is settled in `AING-0002-folder-naming-options.md`.
+
+### Decisions taken
+
+| Question | Answer |
+|---|---|
+| Deployment target | **13.0** — the verified floor for a clean link |
+| Universal or arm64-only | **arm64-only**; `build.sh` keeps an `ARCHS` array so universal is a one-word change |
+| $99/year Apple Developer Program | **Deferred.** Releases ship unsigned for now, so §4 and Phase 5 are unbuilt |
+| Repository visibility | **Public**, MIT-licensed. This reverses the costing in §3 |
+| Tests before CI | **Yes** — `Tools/EngineTests` landed first, as §6 Phase 2 argued |
+
+Two sections below were written under the assumption that the repository was
+private and are corrected in place: §3's cost analysis, and its parenthetical
+about the copyright caution.
 
 Everything in §1 and §2 was verified on this machine; the exact commands and
 their output are in the appendix. Everything about GitHub's runners and about
@@ -127,7 +142,7 @@ particular:
 - macOS 14 restructured the screen saver system (the `legacyScreenSaver` host).
   This port has only ever run under the new arrangement. Whether it behaves on
   macOS 13's older host is unknown.
-- The multi-monitor behavior noted in `NOTES.md` is likewise untested.
+- The multi-monitor behavior noted in `docs/NOTES.md` is likewise untested.
 
 CI can reduce this uncertainty but not eliminate it — see §3.
 
@@ -137,20 +152,27 @@ CI can reduce this uncertainty but not eliminate it — see §3.
 
 ### Cost, first
 
-**This repository is private.** I said "public" twice in earlier conversation;
-that was wrong, and it matters here:
+**This repository is public** (made so on 2026-09-15, MIT-licensed). Cost is
+therefore not a constraint at all:
 
-- Public repos get unlimited free Actions minutes.
+- Public repos get unlimited free Actions minutes, macOS runners included.
 - Private repos draw on a monthly quota, and **macOS runners bill at 10× the
-  Linux rate**. A five-minute macOS job costs 50 minutes of quota. A personal
-  account's free tier is 2,000 minutes/month, so roughly 40 builds a month
-  before it costs money.
+  Linux rate** — a five-minute macOS job costs 50 minutes against a 2,000
+  minute free tier, or roughly 40 builds a month.
 
-That is workable but argues for restraint: build on pushes to `main` and on
-tags, not on every push to every branch.
+The restraint this section originally argued for — build only on `main` and on
+tags — is unnecessary. `ci.yml` builds on every push and every pull request,
+across a matrix of runner versions, because the minutes are free and the
+macOS-version coverage is the one thing this project most lacks.
 
-(It also means the copyright caution I raised about `NOTES.md` and
-`ssstars.scr` was overstated — a private repo is not redistribution.)
+(The history here is worth keeping straight, because it reversed twice: the
+repository was private when this document was written, having been called
+public in error before that, and is now genuinely public by a later deliberate
+choice. The copyright caution about `docs/NOTES.md` and `ssstars.scr`, which a
+private repo did defuse, is therefore live again — it is addressed by the scope
+note in `README.md` rather than by restricting access. No Microsoft code is
+redistributed: `bin/ssstars.scr` remains gitignored and nothing in the build
+reads it.)
 
 ### Runner selection
 
@@ -174,7 +196,7 @@ As of what I know:
 
 1. `./build.sh`
 2. Run the engine-only tests (see below)
-3. Regenerate `docs/*.svg` and `git diff --exit-code` them, so the README
+3. Regenerate `docs/assets/*.svg` and `git diff --exit-code` them, so the README
    images can never silently drift from the simulation
 4. Load-test the built bundle
 
@@ -334,19 +356,45 @@ Phased, so each step is independently useful and nothing is wasted if you stop.
 
 ---
 
-## 7. Decisions I need from you
+## 7. Decisions, as taken
 
-1. **Deployment target** — 13.0 as recommended, or is Intel/Big Sur support
-   worth the fragility?
-2. **Universal or arm64-only?** Universal roughly doubles binary size (still
-   trivial, ~200 KB) and costs nothing else. Do you care about Intel Macs at
-   all?
-3. **$99/year?** This determines whether Phase 5 ever happens, and it shapes
-   Phase 4.
-4. **Is the repo staying private?** If it goes public, Actions become free and
-   the restraint in §3 is unnecessary.
-5. **Tests first?** Phase 2 is where CI stops being decorative. I would not
-   build Phase 3 without it.
+Answered 2026-09-15. The questions are kept with their answers, because the
+reasoning above is only legible against what was being asked.
+
+1. **Deployment target** — 13.0 as recommended, or Intel/Big Sur support?
+   → **13.0.** `MIN_MACOS` in `build.sh`, and `LSMinimumSystemVersion` in
+   `Info.plist`. Below 13.0 the link wants back-deployment archives that ship
+   arm64-only; the appendix has the failure output.
+
+2. **Universal or arm64-only?** → **arm64-only.** `build.sh` still loops over
+   an `ARCHS` array and runs `lipo`, which is a no-op at one architecture, so
+   going universal later means adding `x86_64` to one line and nothing else.
+   The cost of this choice is that Intel Macs are unsupported despite the
+   cross-compilation being verified to work.
+
+3. **$99/year?** → **Deferred, not refused.** §4 and §5 stay unimplemented.
+   Releases, when they happen, ship unsigned, which means Gatekeeper requires
+   the right-click-Open dance on first install. Revisit if the project gets
+   users who are not you.
+
+4. **Is the repo staying private?** → **No.** It is public and MIT-licensed as
+   of 2026-09-15. §3 is corrected accordingly; the workflow is deliberately
+   unfrugal as a result.
+
+5. **Tests first?** → **Yes.** `Tools/EngineTests` was written before `ci.yml`,
+   so the workflow gates on behavior rather than on compilation. This was the
+   right call: see the list in §6 Phase 2 against what the suite actually
+   covers.
+
+### Still open
+
+- **Whether AppKit view instantiation survives a headless runner.** `LoadTest`
+  and `Render` both construct an `NSView`. CI is the experiment; if they fail,
+  the engine tests still cover every piece of arithmetic that can regress, and
+  the two AppKit gates get an `if: runner.environment == 'self-hosted'` or a
+  virtual framebuffer.
+- **Phase 5 packaging** (`.pkg` per-user install semantics, whether `stapler`
+  accepts a bare `.saver`) — untested, and blocked on question 3 anyway.
 
 ---
 

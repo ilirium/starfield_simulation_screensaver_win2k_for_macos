@@ -37,7 +37,7 @@ xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/${NAME}Preview" \
     "${LIB_SRC[@]}" Sources/main.swift \
     -framework ScreenSaver -framework Cocoa
 
-# Render regenerates docs/*.svg; LoadTest verifies the bundle the way macOS
+# Render regenerates docs/assets/*.svg; LoadTest verifies the bundle the way macOS
 # will. Both link the same sources as the saver, so they exercise real code.
 echo "==> compiling tools"
 xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/Render" \
@@ -53,5 +53,5 @@ echo "==> verifying the bundle loads"
 echo
 echo "built: $SAVER"
 echo "       $BUILD/${NAME}Preview"
-echo "       $BUILD/Render      (./build/Render <out-dir> [--svg docs])"
+echo "       $BUILD/Render      (./build/Render <out-dir> [--svg docs/assets])"
 echo "       $BUILD/LoadTest    (./build/LoadTest <path.saver>)"

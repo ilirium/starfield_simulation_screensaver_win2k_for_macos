@@ -172,6 +172,8 @@ The interesting part of this repository is the write-up. In reading order:
 | [`TEARDOWN.md`](docs/TEARDOWN.md) | How the binary was disassembled — the tools, the order, and two wrong turns. |
 | [`HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) | How the Swift port works. Assumes no Swift, AppKit, or Objective-C. |
 | [`NOTES.md`](docs/NOTES.md) | Bare reference: every recovered constant with the address it came from. |
+| [`UNINSTALLING.md`](docs/UNINSTALLING.md) | Removing a saver on modern macOS — three caches, and the one that hides your settings. |
+| [`THUMBNAIL.md`](docs/THUMBNAIL.md) | The preview image, and the validation experiment that returned a confident wrong answer. |
 
 Short version of what was found: the original's entire graphics vocabulary is
 three GDI calls — `GetClipBox`, `PatBlt`, `GetStockObject`. No `SetPixel`, no

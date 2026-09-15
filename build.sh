@@ -94,6 +94,11 @@ xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/EngineTests" \
 echo "==> running engine tests"
 "$BUILD/EngineTests"
 
+# Pure shell and hermetic -- it overrides every directory uninstall.sh touches,
+# so it never reaches the real ones. Cheap enough to run on every build.
+echo "==> running uninstaller tests"
+./Tools/uninstall-tests.sh
+
 echo "==> verifying the bundle loads"
 "$BUILD/LoadTest" "$SAVER"
 

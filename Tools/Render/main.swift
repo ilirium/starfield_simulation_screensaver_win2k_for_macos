@@ -18,13 +18,22 @@ let svgDir = args.firstIndex(of: "--svg").map { args[$0 + 1] }
 
 // MARK: - PNG: drive the real view offscreen
 
-let store = ScreenSaverDefaults(forModuleWithName: Config.bundleIdentifier) ?? .standard
+// A scratch settings domain, never the real one: this tool used to write its
+// density and warp straight into the store the preview harness reads, so
+// regenerating the artwork silently replaced whatever had been chosen there.
+//
+// No `?? .standard` fallback -- falling back would quietly restore exactly the
+// clobbering this avoids. Measured: UserDefaults(suiteName:) writes
+// ~/Library/Preferences/com.ilirium.Starfield.render.plist, plain Preferences
+// rather than ByHost, which is why the domain is removed again below.
+let renderDomain = "\(Config.bundleIdentifier).render"
+guard let store = UserDefaults(suiteName: renderDomain) else { exit(1) }
 store.set(120, forKey: Config.densityKey)
 store.set(5, forKey: Config.warpKey)
-store.synchronize()
 
 let frame = NSRect(x: 0, y: 0, width: 640, height: 480)
 guard let view = StarfieldView(frame: frame, isPreview: false) else { exit(1) }
+view.useDefaultsStore(store)
 
 func snapshot() -> NSBitmapImageRep? {
     guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
@@ -118,3 +127,11 @@ if let svgDir {
     try? trails.write(toFile: "\(svgDir)/trails.svg", atomically: true, encoding: .utf8)
     print("wrote starfield.svg (\(still.utf8.count) B) and trails.svg (\(trails.utf8.count) B)")
 }
+
+// Empty the scratch domain again. Measured: this clears the values and the
+// domain stops resolving, but it leaves a 42-byte empty-dict plist on disk that
+// survives a cfprefsd restart -- the same mirror trap as `defaults delete`. The
+// leftover is harmless and is what the uninstaller's plain-Preferences sweep of
+// com.ilirium.Starfield*.plist is for; it is not in ByHost, so a ByHost-only
+// glob would miss it.
+UserDefaults.standard.removePersistentDomain(forName: renderDomain)

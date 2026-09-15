@@ -32,7 +32,7 @@ SWIFTFLAGS=(-O -wmo -sdk "$SDK" -target "$HOST_ARCH-apple-macosx$MIN_MACOS")
 LIB_SRC=(Sources/StarfieldEngine.swift Sources/StarfieldView.swift Sources/ConfigController.swift)
 
 rm -rf "$SAVER" "$BUILD/${NAME}Preview" "$BUILD/Render" "$BUILD/LoadTest" \
-       "$BUILD/EngineTests" "$BUILD/obj"
+       "$BUILD/EngineTests" "$BUILD/Thumbnail" "$BUILD/obj"
 mkdir -p "$SAVER/Contents/MacOS" "$SAVER/Contents/Resources" "$BUILD/obj"
 
 echo "==> compiling saver (${ARCHS[*]}, macOS $MIN_MACOS+)"
@@ -64,8 +64,46 @@ cp Resources/Info.plist "$SAVER/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $MIN_MACOS" \
     "$SAVER/Contents/Info.plist" >/dev/null
 
+# Everything that goes in the bundle must be in place before codesign runs.
+# The signature seals Contents/Resources: adding a file afterwards breaks it
+# with "a sealed resource is missing or invalid", and the failure is silent
+# until macOS refuses to load the plugin. Hence the ordering here, and hence
+# this step sitting above the signing step rather than below it.
+#
+# Thumbnail links StarfieldEngine alone -- no AppKit -- so building it here
+# costs nothing and drags in no frameworks.
+echo "==> generating preview thumbnails"
+xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/Thumbnail" \
+    Sources/StarfieldEngine.swift Tools/Thumbnail/main.swift
+"$BUILD/Thumbnail" "$SAVER/Contents/Resources"
+
+# System Settings finds these by filename and renders them at a fixed size, so
+# a wrong dimension is invisible until someone looks at the pane. Check before
+# the signature seals them in.
+while read -r file want_w want_h; do
+    got_w=$(sips -g pixelWidth  "$SAVER/Contents/Resources/$file" | awk '/pixelWidth/{print $2}')
+    got_h=$(sips -g pixelHeight "$SAVER/Contents/Resources/$file" | awk '/pixelHeight/{print $2}')
+    if [ "$got_w" != "$want_w" ] || [ "$got_h" != "$want_h" ]; then
+        echo "build.sh: $file is ${got_w}x${got_h}, expected ${want_w}x${want_h}" >&2
+        exit 1
+    fi
+done <<'SIZES'
+thumbnail.png 90 58
+thumbnail@2x.png 180 116
+SIZES
+
+# The uninstaller travels inside the installation, so someone who emptied
+# Downloads six months ago still has it. Sealed by the signature below.
+cp uninstall.sh "$SAVER/Contents/Resources/uninstall.sh"
+chmod +x "$SAVER/Contents/Resources/uninstall.sh"
+
 echo "==> signing (ad hoc)"
 codesign --force --deep --sign - --timestamp=none "$SAVER"
+
+# Prove the seal actually covers what was just added. --strict is what catches
+# a resource added after signing; without this the build would happily ship a
+# bundle macOS then refuses.
+codesign --verify --deep --strict "$SAVER"
 
 echo "==> compiling preview harness"
 xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/${NAME}Preview" \
@@ -94,6 +132,11 @@ xcrun swiftc "${SWIFTFLAGS[@]}" -o "$BUILD/EngineTests" \
 echo "==> running engine tests"
 "$BUILD/EngineTests"
 
+# Pure shell and hermetic -- it overrides every directory uninstall.sh touches,
+# so it never reaches the real ones. Cheap enough to run on every build.
+echo "==> running uninstaller tests"
+./Tools/uninstall-tests.sh
+
 echo "==> verifying the bundle loads"
 "$BUILD/LoadTest" "$SAVER"
 
@@ -103,3 +146,4 @@ echo "       $BUILD/${NAME}Preview"
 echo "       $BUILD/Render      (./build/Render <out-dir> [--svg docs/assets])"
 echo "       $BUILD/LoadTest    (./build/LoadTest <path.saver>)"
 echo "       $BUILD/EngineTests (./build/EngineTests)"
+echo "       $BUILD/Thumbnail  (./build/Thumbnail <out-dir>)"

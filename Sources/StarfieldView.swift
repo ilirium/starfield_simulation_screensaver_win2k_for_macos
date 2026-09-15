@@ -6,7 +6,7 @@ import ScreenSaver
 final class StarfieldView: ScreenSaverView {
 
     private var engine = StarfieldEngine()
-    private var defaults: ScreenSaverDefaults?
+    private var defaults: ScreenSaverDefaultsStore?
     private var configController: ConfigController?
 
     /// The original sized stars 1...5 px on a 640 px wide CRT. Reproducing
@@ -29,13 +29,26 @@ final class StarfieldView: ScreenSaverView {
 
     private func commonInit() {
         animationTimeInterval = StarfieldEngine.tickInterval
-        defaults = ScreenSaverDefaults(forModuleWithName: Config.bundleIdentifier)
-        defaults?.register(defaults: [
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+        adopt(ScreenSaverDefaults(forModuleWithName: Config.bundleIdentifier))
+    }
+
+    /// Point the view at a different settings store and re-read. Only
+    /// Tools/Render calls this, to keep generating the README art from
+    /// overwriting the settings the preview harness reads. The saver never
+    /// does: it gets its store in commonInit and keeps it.
+    func useDefaultsStore(_ store: ScreenSaverDefaultsStore) {
+        adopt(store)
+    }
+
+    private func adopt(_ store: ScreenSaverDefaultsStore?) {
+        defaults = store
+        // Registration lives in memory only, so this never writes to the domain.
+        store?.register(defaults: [
             Config.densityKey: StarfieldEngine.defaultDensity,
             Config.warpKey: StarfieldEngine.defaultWarp,
         ])
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.black.cgColor
         reloadSettings()
     }
 

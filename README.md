@@ -31,15 +31,18 @@ plugin loaded into the system's host process, so Rosetta cannot bridge the gap.
 
 ### From a release
 
-Download the zip from [Releases][releases], unzip it, then pick one:
+Download the zip from [Releases][releases] and unzip it. You get a `Starfield`
+folder holding the saver and an uninstaller. Then pick one:
 
-**Double-click `Starfield.saver`.** macOS offers to install it and opens System
-Settings at the Screen Saver pane. Easiest, and the only route with no terminal.
+**Double-click `Starfield/Starfield.saver`.** macOS offers to install it and
+opens System Settings at the Screen Saver pane. Easiest, and the only route
+with no terminal.
 
 **Install it by hand.** More steps, but it is obvious what it does, and it
 sidesteps the Gatekeeper prompt below:
 
 ```sh
+cd Starfield
 xattr -dr com.apple.quarantine Starfield.saver
 cp -R Starfield.saver ~/Library/"Screen Savers"/
 ```
@@ -77,6 +80,62 @@ never quarantined. Apple's Command Line Tools are the only requirement:
 cp -R build/Starfield.saver ~/Library/"Screen Savers"/
 ```
 
+### Upgrading
+
+System Settings caches the Screen Saver pane's preview tiles per saver, and
+nothing about replacing the bundle invalidates that cache — not new contents,
+not a new version number. If the pane still shows the old thumbnail after an
+upgrade:
+
+```sh
+~/Library/"Screen Savers"/Starfield.saver/Contents/Resources/uninstall.sh --refresh-preview
+```
+
+That clears the cached tiles for every legacy saver, which costs them one
+re-render the next time the pane opens, and nothing else. A first install on a
+machine that never had Starfield has no stale entry and needs none of this.
+
+## Uninstall
+
+The uninstaller ships **inside** the installed bundle, so it is still there
+long after the download has been deleted:
+
+```sh
+~/Library/"Screen Savers"/Starfield.saver/Contents/Resources/uninstall.sh
+```
+
+The release zip also carries a copy beside the saver, along with
+`Uninstall Starfield.command` for double-clicking from Finder.
+
+| Flag | Effect |
+|---|---|
+| `--dry-run` | print what would be removed, change nothing |
+| `--keep-settings` | remove the saver, keep density and warp speed |
+| `--all-users` | also remove `/Library/Screen Savers/Starfield.saver` |
+| `--refresh-preview` | only clear the preview cache, remove nothing |
+| `-y` | skip the confirmation |
+
+### By hand
+
+If you have neither copy, this is everything an install creates. The `<UUID>`
+is your machine's hardware UUID, so glob it rather than typing it:
+
+```sh
+rm -rf ~/Library/"Screen Savers"/Starfield.saver
+rm -f  ~/Library/Preferences/ByHost/com.ilirium.Starfield.*.plist
+rm -f  ~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Preferences/ByHost/com.ilirium.Starfield.*.plist
+killall -u "$USER" cfprefsd
+```
+
+The second path is the one that matters and the one most uninstallers miss.
+Screen savers are sandboxed, so the settings the saver actually reads live in
+its container — `defaults -currentHost read com.ilirium.Starfield` cannot see
+them, and deleting only the first path leaves them behind.
+
+Quit System Settings and run `killall legacyScreenSaver` first if either is
+running: both hold the bundle open, and a live preferences client will rewrite
+the plist you just deleted.
+
 ## Build
 
 Apple's Command Line Tools are enough — there is no Xcode project, no package
@@ -113,11 +172,15 @@ The interesting part of this repository is the write-up. In reading order:
 | [`TEARDOWN.md`](docs/TEARDOWN.md) | How the binary was disassembled — the tools, the order, and two wrong turns. |
 | [`HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) | How the Swift port works. Assumes no Swift, AppKit, or Objective-C. |
 | [`NOTES.md`](docs/NOTES.md) | Bare reference: every recovered constant with the address it came from. |
+| [`UNINSTALLING.md`](docs/UNINSTALLING.md) | Removing a saver on modern macOS — three caches, and the one that hides your settings. |
+| [`THUMBNAIL.md`](docs/THUMBNAIL.md) | The preview image, and the validation experiment that returned a confident wrong answer. |
 
 Short version of what was found: the original's entire graphics vocabulary is
 three GDI calls — `GetClipBox`, `PatBlt`, `GetStockObject`. No `SetPixel`, no
 `LineTo`. The stars were never dots; they are filled rectangles, which is why
 this port draws hard-edged squares with antialiasing switched off.
+
+What changed in each release: [`CHANGELOG.md`](CHANGELOG.md).
 
 Project state, open decisions, and what is still unverified:
 [`HANDOFF.md`](HANDOFF.md).

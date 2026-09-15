@@ -212,6 +212,53 @@ nothing here needs it: the port builds and runs from source alone, and
 `docs/NOTES.md` is the durable record of what it contained. If you want to check
 the disassembly yourself, supply your own copy from a Windows 2000 `system32`.
 
+## AI disclosure
+
+This port was written with heavy assistance from AI coding agents, with a human
+leading the ideas, the decisions, the testing and the debugging. That division
+shaped the result, so it is stated plainly rather than left to be inferred from
+the commit log.
+
+What it meant in practice: the disassembly analysis, the Swift, the test
+suites, the shell scripts and this documentation were largely drafted by an
+agent. Every decision that mattered was a human's — what to build, what to
+defer, what fidelity meant, and when a plan was ready.
+
+**The most valuable findings came from human direction, not from the agent
+working alone.** The bug that would have shipped an uninstaller deleting the
+wrong preferences file was found because a human mentioned having removed
+XScreenSaver that morning and wondered whether it had solved the same problem.
+Reading jwz's hand-written installer is what surfaced it.
+
+The failures belong here too, since they are the honest half:
+
+- A validation experiment returned a clean, readable, **wrong** answer, and
+  acting on it would have thrown away a working design — [`docs/THUMBNAIL.md`](docs/THUMBNAIL.md) §2.
+- The first generated thumbnail lit 55% of the frame: a photographic negative
+  of a starfield.
+- A count of 289 bundles was nearly written up as 295, because a directory's
+  link count was mistaken for a file count. Caught by re-measuring before the
+  commit, not by noticing.
+- A self-deleting script lost its arguments and hung at a prompt nobody could
+  answer. A two-minute test timeout caught it; review had not.
+
+The repository's habits exist because of this. Label what was measured and what
+was only reasoned. Record the wrong turns. Mutation-test the suites before
+trusting them. Keep a ["what to distrust"](HANDOFF.md) list. They are how a
+project built this way stays honest about what it actually knows, and most of
+them were added after something got through.
+
+**If you would rather not run AI-written code, this is not the project for
+you.** That is a reasonable position and no argument is offered against it. The
+sources are small, dependency-free, and build with Apple's Command Line Tools
+alone, so reading the whole thing before running it is a realistic afternoon.
+
+The acknowledgement matters as much as the disclosure: this stands on
+hand-written work. The original Starfield Simulation, whose behaviour is
+reproduced here rather than invented; and jwz's XScreenSaver, which has been
+fighting macOS since 2013 and whose installer contained the knowledge that
+fixed a real bug in this one.
+
 ## License and scope
 
 The port is MIT licensed — see [`LICENSE`](LICENSE). That covers the original

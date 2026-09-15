@@ -7,6 +7,24 @@ release date. Each entry says what changed and, where it is not obvious, why —
 the reasoning usually lives in `aingineering/AING-NNNN`, which is linked rather
 than repeated.
 
+## [Unreleased]
+
+### Added
+
+- **An AI disclosure section in the README.** The port was written with heavy
+  AI assistance and a human leading the ideas, decisions, testing and
+  debugging; that is stated plainly rather than left to be inferred. It names
+  the failures as well as the division of labour, because the repository's
+  habits — label what was measured, record the wrong turns, mutation-test the
+  suites, keep a distrust list — exist as a response to them.
+
+### Verified
+
+- **The 1.0.0 → 1.1.0 upgrade path, on a real machine.** `--refresh-preview`
+  fixes a genuinely stale preview tile, and `uninstall.sh` works against a real
+  install outside hermetic mode. Both had been tested only with fixtures and
+  colour-swapped placeholders until now.
+
 ## [1.1.0] — 2026-09-15
 
 An uninstaller, a Screen Saver pane preview, and a settings fix — plus two
@@ -132,5 +150,6 @@ behaviour, with the disassembly that justifies it written down.
 - **Multi-monitor behaviour is untested.**
 - **No preview thumbnail** in the Screen Saver pane. Fixed in 1.1.0.
 
+[Unreleased]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/releases/tag/v1.0.0

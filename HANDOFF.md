@@ -96,8 +96,9 @@ Working documents:
 |---|---|
 | `aingineering/AING-0001-ci-and-distribution.md` | CI, universal builds, signing, packaging — researched, now partly implemented |
 | `aingineering/AING-0002-folder-naming-options.md` | the folder-naming long list, and the decision that came from outside it |
-| `aingineering/AING-0003-uninstaller.md` | v1.1.0: uninstaller, System Settings thumbnail, and a settings-clobbering fix — decided, not implemented |
-| `aingineering/AING-0004-plan-review.md` | two independent reviews of AING-0003; 16 findings, 3 of them structural. **Read before implementing** |
+| `aingineering/AING-0003-uninstaller.md` | v1.1.0 plan, **superseded**. Kept as the record of what was first proposed |
+| `aingineering/AING-0004-plan-review.md` | two independent reviews of AING-0003; 16 findings, 3 structural |
+| `aingineering/AING-0005-uninstaller-revised.md` | **the plan to implement.** Self-contained; supersedes AING-0003 |
 
 New working documents take the next `AING-NNNN` in sequence; numbers are never
 reused.
@@ -210,21 +211,18 @@ rather than waiting on it, which was the right call — the workaround is one
 
 ## Next steps, in the order that makes sense
 
-1. **Build v1.1.0** — planned in full in
-   `aingineering/AING-0003-uninstaller.md`: an uninstaller, a System Settings
-   preview thumbnail, and a fix for `Render` overwriting the user's real saved
-   settings. Every design question is answered there; it needs implementing,
-   not deciding. Work on the branch `uninstaller-and-a-few-fixes`, off `main`.
+1. **Build v1.1.0** — an uninstaller, a System Settings preview thumbnail, and
+   a fix for `Render` overwriting the user's real saved settings. Every design
+   question is answered; it needs implementing, not deciding. Work on the branch
+   `uninstaller-and-a-few-fixes`, off `main`.
 
-   **Read `AING-0004-plan-review.md` first.** Two independent reviews found 16
-   issues, three structural: the removal order is backwards and would leave
-   settings intact, the thumbnails should come from the engine rather than the
-   view, and the uninstaller should ship inside the bundle so it survives the
-   download being deleted. AING-0003 has not yet been amended.
+   **Implement `AING-0005-uninstaller-revised.md`** — it is self-contained and
+   supersedes AING-0003. Read AING-0004 only for why the plan changed.
 
-   Then step 0 in its §9 — confirm macOS still honours the
-   `Contents/Resources/thumbnail.png` convention for third-party savers. The
-   whole thumbnail section rests on it and it is a five-minute check.
+   Start with its step 0 (§7): confirm macOS still honours the
+   `Contents/Resources/thumbnail.png` convention for third-party savers. §5
+   rests entirely on it and it is a five-minute check needing a human to look
+   at the Screen Saver pane.
 2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.

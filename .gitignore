@@ -68,3 +68,4 @@ __MACOSX/
 # Step: Project related
 .idea/
 bin/ssstars.scr
+build/

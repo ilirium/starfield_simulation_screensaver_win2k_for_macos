@@ -1,0 +1,159 @@
+name: Release
+
+# Publishing is: git tag v1.0.0 && git push origin v1.0.0
+#
+# Tag on main, never on a branch. A tag is a claim that this commit is the
+# mainline state; tagging before merging leaves the released commit unreachable
+# from the default branch, and orphans the tag entirely if the branch is later
+# rebased or squashed.
+#
+# The artifact is ad-hoc signed, not Developer ID signed and not notarized.
+# That is a deliberate deferral, not an oversight -- notarization needs the
+# $99/year Apple Developer Program. See aingineering/AING-0001 §4. The
+# consequence is that a downloaded build carries the quarantine flag and macOS
+# may refuse it until that flag is cleared, so the generated release notes
+# carry the install instructions rather than assuming a double-click works.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and publish (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve the version
+        id: version
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          PLIST=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+                  Resources/Info.plist)
+
+          # A tag that disagrees with the bundle is a packaging bug worth
+          # failing on: the version someone reads in the release would not be
+          # the version recorded inside the thing they downloaded.
+          if [ "$VERSION" != "$PLIST" ]; then
+            echo "::error::tag $TAG implies version $VERSION, but Info.plist says $PLIST"
+            exit 1
+          fi
+
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "releasing $VERSION from $TAG"
+
+      - name: Build, test, and verify
+        # build.sh runs the engine suite and LoadTest, so a release cannot be
+        # cut from a tree that fails either.
+        run: ./build.sh
+
+      - name: Package
+        id: package
+        run: |
+          set -euo pipefail
+          ARCHIVE="Starfield-${{ steps.version.outputs.version }}.zip"
+
+          # ditto, not zip. A .saver is a bundle -- a directory -- and ditto is
+          # the tool that preserves the extended attributes and layout the code
+          # signature is computed over. Verified: the signature survives this
+          # round-trip and codesign --verify --deep --strict still passes.
+          ditto -c -k --keepParent build/Starfield.saver "$ARCHIVE"
+
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+          echo "sha=$(shasum -a 256 "$ARCHIVE" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          ls -lh "$ARCHIVE"
+
+      - name: Verify what a user will actually download
+        # Unpack the archive and check the result, rather than trusting the
+        # bundle that was never packed. This is the step that would catch a
+        # packaging tool quietly breaking the signature.
+        run: |
+          set -euo pipefail
+          mkdir -p roundtrip
+          ditto -x -k "${{ steps.package.outputs.archive }}" roundtrip
+          codesign --verify --deep --strict --verbose=2 roundtrip/Starfield.saver
+          ./build/LoadTest roundtrip/Starfield.saver
+
+      - name: Write the release notes
+        run: |
+          cat > NOTES.md <<'NOTES'
+          A macOS port of the Windows 2000 "Starfield Simulation" screen saver.
+
+          ## Install
+
+          Download `Starfield-VERSION.zip` below and unzip it, then **either**:
+
+          **Double-click `Starfield.saver`.** macOS offers to install it and
+          opens System Settings at the Screen Saver pane.
+
+          **Or install it by hand:**
+
+          ```sh
+          xattr -dr com.apple.quarantine Starfield.saver
+          cp -R Starfield.saver ~/Library/"Screen Savers"/
+          ```
+
+          ### If macOS refuses to open it
+
+          This build is ad-hoc signed rather than notarized, because
+          notarization requires a paid Apple Developer account. Anything
+          downloaded from the internet is quarantined, and macOS is strict
+          about quarantined code that it cannot trace to a registered
+          developer.
+
+          Clearing the quarantine flag is the reliable fix:
+
+          ```sh
+          xattr -dr com.apple.quarantine /path/to/Starfield.saver
+          ```
+
+          Alternatively, open **System Settings → Privacy & Security**, scroll
+          to Security, and use **Open Anyway** after the first blocked attempt.
+
+          If you would rather trust nothing you did not build, the repository
+          builds from source with Apple's Command Line Tools and no
+          dependencies — `./build.sh` — and a locally built bundle is never
+          quarantined in the first place.
+
+          ## Requirements
+
+          macOS 13 or later, Apple Silicon. Intel is not supported: a screen
+          saver is a plugin loaded into the system's host process, so Rosetta
+          cannot bridge the architecture gap.
+
+          ## Verify the download
+
+          ```
+          SHA256  CHECKSUM
+          ```
+          NOTES
+          sed -i '' "s/VERSION/${{ steps.version.outputs.version }}/g" NOTES.md
+          sed -i '' "s/CHECKSUM/${{ steps.package.outputs.sha }}/" NOTES.md
+          cat NOTES.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.package.outputs.archive }}" \
+            --title "Starfield ${{ steps.version.outputs.version }}" \
+            --notes-file NOTES.md \
+            --verify-tag

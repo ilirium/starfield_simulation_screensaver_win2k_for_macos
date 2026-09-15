@@ -36,6 +36,12 @@ manifest, no dependencies.
 CI runs all of this on every push and pull request across `macos-14`,
 `macos-15` and `macos-latest`. **All six jobs pass**, in about 55 seconds.
 
+Releases are tag-triggered: `git tag v1.2.3 && git push origin v1.2.3` builds,
+packs the bundle with `ditto`, re-verifies the *unpacked archive* rather than
+the bundle that was never packed, and publishes with generated install notes
+and a checksum. It refuses to publish if the tag disagrees with
+`CFBundleShortVersionString`. **v1.0.0 is published**, unsigned.
+
 ---
 
 ## Repository map
@@ -163,23 +169,25 @@ it. `README.md` now carries a licence scope note saying so explicitly.
 paid, releases ship unsigned, and installing means the right-click-Open dance.
 `AING-0001` §4 and §5 are written but unimplemented.
 
-**`release.yml`.** Planned and not built — tag-triggered, zip the `.saver`,
-create a GitHub Release. Left out deliberately, because its shape depends on
-the signing question above. Unsigned is a perfectly good first version.
+That is now the only thing blocking anything. `release.yml` shipped unsigned
+rather than waiting on it, which was the right call — the workaround is one
+`xattr` command, documented in the README and in every release's notes.
 
 ---
 
 ## Next steps, in the order that makes sense
 
-1. **`release.yml`**, unsigned — tag-triggered, zip the `.saver`, create a
-   GitHub Release. The one piece of `AING-0001` that was planned and not built.
-2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
+1. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.
-3. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
+2. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
    nothing else does.
-4. **Multi-monitor**, whenever a second display is to hand — the last untested
+3. **Multi-monitor**, whenever a second display is to hand — the last untested
    claim that is purely about behavior rather than packaging.
+4. **Watch what the first downloaders hit.** The Gatekeeper story is reasoned
+   and partly verified — quarantine does propagate through the zip onto the
+   inner executable — but nobody has yet installed a downloaded build on a
+   machine that did not produce it.
 
 ---
 

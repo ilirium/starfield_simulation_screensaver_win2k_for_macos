@@ -99,9 +99,17 @@ b2aba45  teardown and port documentation
 56cc1f7  MIT License          <- was on main alone
 ```
 
-**Landed on `main`** on 2026-09-15 by fast-forward, so `main` and `macos-port`
-point at the same commit and the history is a straight line from the initial
-commit.
+**Landed on `main`** on 2026-09-15 via a `--no-ff` merge commit, so the branch
+commits stay grouped as one piece of work rather than strung along main's
+first-parent path. `git log --first-parent main` reads as a list of what
+landed; plain `git log` still shows every step.
+
+It was briefly fast-forwarded first. Rebuilding it as a merge needed no force
+push and rewrote nothing: rewinding local `main` to the licence commit and
+merging `--no-ff` produces a merge commit whose second parent *is* the old
+fast-forwarded tip, so it descends from what was already published and pushes
+as an ordinary fast-forward. Worth remembering — undoing a fast-forward is
+usually assumed to require a force push, and here it did not.
 
 Getting there needed one repair. Committing `LICENSE` to `main` alone had
 diverged the branches, and `git merge --ff-only` fails across a divergence —

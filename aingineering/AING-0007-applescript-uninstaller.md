@@ -1,10 +1,22 @@
 # A GUI uninstaller in AppleScript — v1.2.0
 
-Status: **decided, not implemented.** Written 2026-09-15.
+Status: **feasibility settled, two decisions open, not implemented.**
+Written 2026-09-15.
 
 The question that started it: can a small GUI app drive `uninstall.sh` and offer
-its modes as buttons? Yes. This says how, what was measured, what it costs, and
-the one mode that does not fit.
+its modes as buttons? Yes. §1 is measured and is not in question. §3 and §4 are
+**proposals, not decisions** — they are the two things to settle before anyone
+writes code.
+
+> **Open decisions**
+>
+> 1. **§3 — `--all-users`.** Proposed: drop it from the GUI. There is a third
+>    option, added after the first draft, that may change the answer.
+> 2. **§4 — the `.command`.** Proposed: ship the app *alongside* it. Replacing
+>    it, or not building the app at all, are both live.
+>
+> An independent review of this document is wanted **at implementation time**,
+> not now.
 
 Everything in §1 was measured on macOS 26.6.2, Apple Silicon, with the commands
 shown. Claims that were not measured are labelled.
@@ -98,9 +110,9 @@ neither removes the saver.
 
 ---
 
-## 3. `--all-users` is dropped, deliberately
+## 3. `--all-users` — OPEN
 
-It does not fit, and forcing it would be worse than omitting it.
+**The constraint is real; the conclusion is not yet made.**
 
 AppleScript's only elevation is `do shell script … with administrator
 privileges`, which runs the **entire** command as root. `uninstall.sh` refuses
@@ -109,17 +121,32 @@ user's, and any user-path file it touches ends up root-owned. The script
 elevates only its single `rm` of the system path, and `sudo` has no TTY to
 prompt on from a GUI.
 
-So the app omits the mode. Nothing this project does creates
-`/Library/Screen Savers/Starfield.saver` — the flag exists for installs that
-arrived another way — and anyone in that position can run the script directly.
+So passing `--all-users` straight through does not work. Three ways forward:
 
-**Rejected:** re-exec the whole script under `with administrator privileges`.
-It defeats a guard that exists for a reason, and would leave root-owned files
-in the user's Library.
+| | |
+|---|---|
+| **A. Omit the mode** | The GUI simply does not offer it. Nothing this project does creates `/Library/Screen Savers/Starfield.saver`; anyone in that position can run the script directly. Simplest, and the app stays a pure front end. |
+| **B. Elevate only the one `rm`, in the app** | The app runs `uninstall.sh` unelevated, then issues a *separate* `do shell script "rm -rf /Library/Screen Savers/Starfield.saver" with administrator privileges`. This mirrors exactly what the script does internally, and gets a native authentication dialog rather than a dead `sudo` prompt. |
+| **C. Detect and defer** | Offer the mode, and if the system copy exists, tell the user the one command to run in Terminal. Honest, but it is a GUI that hands you a terminal command. |
+
+**B is the interesting one and was missed in the first draft.** It preserves
+the guard's *intent* — elevate one `rm`, never the whole script — while giving
+the GUI full parity with the CLI. Its cost is that the app then contains a
+hardcoded removal path of its own, which is precisely the thing §0 says it must
+never grow. That tension is the decision.
+
+If B is chosen, the path literal must be asserted against `uninstall.sh`'s own
+default, textually, the way the test suite already does for the script's
+directory literals — otherwise the two can drift and the app deletes something
+the script does not.
+
+**Still rejected:** re-exec'ing the *whole* script under `with administrator
+privileges`. It defeats the guard rather than honouring it, and would leave
+root-owned files in the user's Library.
 
 ---
 
-## 4. Gatekeeper, which cuts against this feature
+## 4. The `.command`, and Gatekeeper — OPEN
 
 Worth stating plainly rather than assuming away, because it is the strongest
 argument *against* building it at all.
@@ -134,10 +161,19 @@ versus a quarantined `.command`. Both are blocked; which is *more* annoying was
 not measured, and recent macOS has been moving both toward Privacy & Security →
 Open Anyway rather than right-click → Open.
 
-**So `Uninstall Starfield.command` stays.** Three uninstall routes in one zip is
-mild clutter; having the friendly one blocked with no documented fallback is
-worse. The README should present the app first and the `.command` as what to
-use if macOS refuses the app.
+**Proposed, not decided: `Uninstall Starfield.command` stays.** Three options:
+
+| | |
+|---|---|
+| **A. Ship both** | App first in the README, `.command` documented as what to use if macOS refuses the app. Mild clutter — three uninstall routes in one zip — but the friendly route always has a fallback. |
+| **B. App replaces the `.command`** | Cleaner zip, one obvious GUI route. Risk: if Gatekeeper refuses the app, the only remaining routes are a terminal command and the README. |
+| **C. Do not build the app** | Keep the `.command`, which already works, is 23 lines, needs no build step, and shows exactly what happened. Costs nothing and adds nothing. |
+
+The honest framing for C: this feature trades four new moving parts — a source
+pair, a build step, a signing step, a test suite — for a window of buttons
+instead of a window of text. That is a real improvement for people who will not
+open Terminal, and a real cost. Whether it is worth it is a judgement about the
+audience, not about the technology, and §1 has nothing to say about it.
 
 ---
 
@@ -231,6 +267,9 @@ suites.
 - **Quarantine behaviour for an ad-hoc-signed applet** (§4), and whether it is
   better or worse than the `.command`.
 - **`ditto` round-tripping `applet.rsrc`** (§6).
+- **§3 and §4 themselves**, which are open decisions rather than unverified
+  claims. They are listed here too so a reader skimming only this section does
+  not mistake the document for settled.
 - **Whether the app is wanted at all.** `Uninstall Starfield.command` already
   works, is 23 lines, needs no build step, and shows the user exactly what
   happened in Terminal. This adds an artifact to build, sign, package and test

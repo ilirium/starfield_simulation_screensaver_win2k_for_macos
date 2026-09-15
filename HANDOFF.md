@@ -327,12 +327,12 @@ rather than waiting on it, which was the right call — the workaround is one
 1. **Land and tag v1.1.0.** The work is done; see "Landing v1.1.0" above. Date
    the changelog, merge `--no-ff`, then tag.
 2. **Build the AppleScript GUI uninstaller**, `AING-0007-applescript-uninstaller.md`.
-   Self-contained, three commits, for v1.2.0. Feasibility is measured rather
-   than assumed — `osacompile` needs no Xcode, the app ad-hoc signs like the
-   saver, and its handlers can be tested headlessly. One open decision is
-   flagged in its §4: the app ships *alongside* `Uninstall Starfield.command`
-   rather than replacing it, because an ad-hoc-signed app is the more likely of
-   the two to be refused by Gatekeeper.
+   Three commits, for v1.2.0. Feasibility is measured and settled —
+   `osacompile` needs no Xcode, the app ad-hoc signs like the saver, and its
+   handlers can be tested headlessly. **Two decisions are open and must be made
+   first**: §3, what the GUI does about `--all-users`, and §4, whether the app
+   joins `Uninstall Starfield.command`, replaces it, or is not built at all.
+   An independent review of the plan is wanted at implementation time.
 3. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.

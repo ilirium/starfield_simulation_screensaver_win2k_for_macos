@@ -9,17 +9,64 @@ state of play.
 ### Starting cold
 
 ```sh
-./build.sh          # builds everything, runs 103 engine tests + LoadTest
+git branch --show-current     # expect: uninstaller-and-a-few-fixes
+./build.sh                    # builds everything, runs 103 engine tests + LoadTest
 ```
 
-If that passes, the project is healthy and nothing is half-finished. The
-working tree was clean and every change committed when this was written.
+If `build.sh` passes, v1.0.0 is healthy. The working tree was clean and every
+change committed when this was written.
+
+**v1.1.0 is planned but not started.** No code has been written for it — the
+branch carries planning documents only. Implement
+`aingineering/AING-0005-uninstaller-revised.md`; it is self-contained.
+
+**One thing is mid-flight and needs a human, not a tool.** See "In-flight: step
+0" below before building anything, because a modified bundle is installed on
+this machine that `build.sh` did not produce.
 
 Read `CLAUDE.md` first, then `docs/NOTES.md` before touching
 `Sources/StarfieldEngine.swift` — the integer math there is deliberately
 faithful to a disassembled binary, and several things that look like defects
 are not. `git log --first-parent main` is the short history; plain `git log`
 is every step.
+
+---
+
+### In-flight: step 0 of the v1.1.0 plan
+
+AING-0005 §5 rests on an unconfirmed claim — that macOS still finds a saver's
+preview image at `Contents/Resources/thumbnail.png`, a filename convention with
+no `Info.plist` key, for *third-party* legacy savers. `Random.saver` does it
+this way; it is Apple's own, and the convention predates System Settings.
+
+Step 0 was set up and **the answer was never reported**:
+
+- `build/Starfield.saver` and `~/Library/Screen Savers/Starfield.saver` both
+  carry deliberately garish **magenta** test thumbnails (90×58 and 180×116,
+  white bar across the middle), added by hand and re-signed.
+- `legacyScreenSaver` was restarted so System Settings would re-read the bundle.
+
+**To finish it:** open System Settings → Screen Saver, find Starfield, and see
+which of these is true.
+
+| Seen | Means |
+|---|---|
+| magenta rectangle with a white bar | convention works; §5 proceeds as planned |
+| the previous generic fallback | convention is dead for third-party savers; §5 needs replanning |
+| a live-animating starfield | System Settings renders live and ignores static thumbnails; also a replan |
+
+**Then reconcile the machine**, because that installed bundle is out-of-band —
+deliberate, uncommitted, and not reproducible from `build.sh` as it stands:
+
+```sh
+./build.sh && cp -R build/Starfield.saver ~/Library/"Screen Savers"/
+```
+
+What step 0 *did* already establish, and is worth keeping either way: adding
+files to `Contents/Resources` invalidates the signature
+(`codesign --verify` → "a sealed resource is missing or invalid"), and
+re-signing seals them in. So AING-0005's build reorder is genuinely required,
+not defensive.
 
 ---
 
@@ -107,30 +154,36 @@ reused.
 
 ## Git state
 
-All work is **merged into `main`**. The repository is **public**, MIT-licensed,
-and `v1.0.0` is tagged and released.
+v1.0.0 work is **merged into `main`**. The repository is **public**,
+MIT-licensed, and `v1.0.0` is tagged and released.
 
-Current tip of `main` is `23dbd49`. Shape:
+Current work is on **`uninstaller-and-a-few-fixes`**, branched from `main` at
+`52855f9`, two commits ahead — **planning documents only, no code**:
 
 ```
+3cfee82  Revise the v1.1.0 plan as AING-0005
+8a8c8f8  Review AING-0003 twice, independently
+```
+
+Note the v1.1.0 documents are split across both: AING-0003 and the branch-name
+decision landed on `main` before the branch was cut; AING-0004 and AING-0005 are
+on the branch. Nothing is lost either way, but `main` alone shows a superseded
+plan with no review and no revision beside it.
+
+Tip of `main` is `52855f9`; `v1.0.0` is tagged at `1e6d304`. Shape:
+
+```
+* 52855f9  Name the v1.1.0 branch              <- main, and the branch point
+* fd75db8  thumbnail + branch strategy in AING-0003
+* 12cbd24  Plan the uninstaller as AING-0003
+* 5003ca4  Prepare the handoff for a fresh session
 * 23dbd49  Record the 1.0.0 release
 * 00101f3  Bump the actions off the deprecated Node 20 runtime
-* 1e6d304  Correct how the branch landed          <- v1.0.0 tag
+* 1e6d304  Correct how the branch landed       <- v1.0.0 tag
 *   d63fcab  Merge the macOS port
 |\
 | * 741b4ad  release automation + install instructions
-| * eae8b8e  first CI run recorded
-| * 9b52180  handoff brought up to date
-| * 545bb68  CI: engine tests and build
-| * 7cfa8e2  deployment floor 13.0, ARCHS and MIN_MACOS
-| * 413c726  engine tests
-| * 19c3948  docs/, docs/assets/, aingineering/
-| * d7ea017  handoff, tool rescue, reproducible artwork
-| * 3344a4e  CI and distribution research, folder naming options
-| * b48b4fe  the third GDI import, and a real README
-| * 2da4cc8  Win32 primer
-| * b2aba45  teardown and port documentation
-| * 5ad0262  the port itself
+| * (eleven commits of the port, its docs, tests and CI)
 |/
 * 56cc1f7  MIT License
 * 0069a37  Initial commit

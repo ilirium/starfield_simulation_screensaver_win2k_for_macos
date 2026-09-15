@@ -25,8 +25,13 @@ not drawn by hand, so they cannot drift away from what the saver does.
 cp -R build/Starfield.saver ~/Library/"Screen Savers"/
 ```
 
-Then choose **Starfield** in System Settings → Screen Saver. Requires macOS 14
-or later on Apple Silicon.
+Then choose **Starfield** in System Settings → Screen Saver. Requires macOS 13
+or later, on Apple Silicon.
+
+Built and run on macOS 26; 13 through 15 are what the binary targets rather
+than what it has been tested on. Intel Macs are not supported — the build is
+arm64-only, and a screen saver is a plugin loaded into the system's host
+process, so Rosetta cannot bridge the gap.
 
 ## Build
 

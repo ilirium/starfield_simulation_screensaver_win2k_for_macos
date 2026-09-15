@@ -24,18 +24,58 @@ does.
 
 ## Install
 
+Requires **macOS 13 or later, on Apple Silicon**. Built and run on macOS 26; 13
+through 15 are what the binary targets rather than what it has been tested on.
+Intel Macs are not supported — the build is arm64-only, and a screen saver is a
+plugin loaded into the system's host process, so Rosetta cannot bridge the gap.
+
+### From a release
+
+Download the zip from [Releases][releases], unzip it, then pick one:
+
+**Double-click `Starfield.saver`.** macOS offers to install it and opens System
+Settings at the Screen Saver pane. Easiest, and the only route with no terminal.
+
+**Install it by hand.** More steps, but it is obvious what it does, and it
+sidesteps the Gatekeeper prompt below:
+
+```sh
+xattr -dr com.apple.quarantine Starfield.saver
+cp -R Starfield.saver ~/Library/"Screen Savers"/
+```
+
+Then choose **Starfield** in System Settings → Screen Saver.
+
+[releases]: https://github.com/ilirium/starfield_simulation_screensaver_win2k_for_macos/releases
+
+### If macOS refuses to open it
+
+Released builds are **ad-hoc signed, not notarized** — notarization needs a
+paid Apple Developer account, which this project does not have. macOS
+quarantines anything downloaded from the internet and is strict about
+quarantined code it cannot trace to a registered developer, so it may refuse to
+load the saver.
+
+Clearing the quarantine flag is the reliable fix, and is what the manual
+install above does up front:
+
+```sh
+xattr -dr com.apple.quarantine ~/Library/"Screen Savers"/Starfield.saver
+```
+
+If you would rather not use the terminal, open **System Settings → Privacy &
+Security**, scroll to Security, and use **Open Anyway** after the first blocked
+attempt.
+
+### From source
+
+The route that avoids the question entirely — a bundle you built yourself is
+never quarantined. Apple's Command Line Tools are the only requirement:
+
 ```sh
 ./build.sh
 cp -R build/Starfield.saver ~/Library/"Screen Savers"/
 ```
-
-Then choose **Starfield** in System Settings → Screen Saver. Requires macOS 13
-or later, on Apple Silicon.
-
-Built and run on macOS 26; 13 through 15 are what the binary targets rather
-than what it has been tested on. Intel Macs are not supported — the build is
-arm64-only, and a screen saver is a plugin loaded into the system's host
-process, so Rosetta cannot bridge the gap.
 
 ## Build
 

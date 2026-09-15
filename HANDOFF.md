@@ -33,6 +33,9 @@ loudly rather than at screen-blank time:
 Command Line Tools are sufficient. There is no Xcode project, no package
 manifest, no dependencies.
 
+CI runs all of this on every push and pull request across `macos-14`,
+`macos-15` and `macos-latest`. **All six jobs pass**, in about 55 seconds.
+
 ---
 
 ## Repository map
@@ -77,11 +80,12 @@ reused.
 
 ## Git state
 
-Work is on **`macos-port`**, eleven commits, rebased onto `main` so history is
+Work is on **`macos-port`**, twelve commits, rebased onto `main` so history is
 linear. The repository is **public** and MIT-licensed.
 
 ```
-(this one) handoff brought up to date
+(this one) CI results recorded
+9b52180  handoff brought up to date
 545bb68  CI: engine tests and build, across three runner images
 7cfa8e2  deployment floor 13.0, ARCHS and MIN_MACOS
 413c726  engine tests
@@ -95,14 +99,24 @@ b2aba45  teardown and port documentation
 56cc1f7  MIT License          <- was on main alone
 ```
 
-To land it: `git checkout main && git merge --ff-only macos-port && git push`.
+**Landed on `main`** on 2026-09-15 by fast-forward, so `main` and `macos-port`
+point at the same commit and the history is a straight line from the initial
+commit.
 
-That command had **stopped working**: committing `LICENSE` to `main` alone
-diverged the branches, and `--ff-only` fails across a divergence. Rebasing
-`macos-port` onto `origin/main` restored it, at the cost of one force-push.
+Getting there needed one repair. Committing `LICENSE` to `main` alone had
+diverged the branches, and `git merge --ff-only` fails across a divergence —
+so the landing instruction this file used to give had quietly stopped working.
+Rebasing `macos-port` onto `origin/main` restored it, at the cost of one
+force-push.
 
-The five newest commits are **local and unpushed** by choice, pending review.
-CI cannot report anything until they are pushed.
+Everything is pushed. CI has run green on the branch — see below.
+
+One trap worth naming, because it cost a failed push: committing to `main` on
+GitHub (the licence, the description) moves `origin/main` without moving the
+local ref. A later `git push --all` then drags that stale `main` into the push
+and the whole command fails, even though the branch it was actually meant to
+carry went up fine. `git push` alone pushes only the current branch. If local
+`main` does fall behind, `git branch -f main origin/main` is the whole fix.
 
 `bin/ssstars.scr` is gitignored and is Microsoft's; nothing in the build reads
 it. `README.md` now carries a licence scope note saying so explicitly.
@@ -149,13 +163,15 @@ the signing question above. Unsigned is a perfectly good first version.
 
 ## Next steps, in the order that makes sense
 
-1. **Push and watch CI.** Five commits are sitting local. The first run is an
-   experiment, not a formality — see "what to distrust".
-2. **Land `macos-port`.** `--ff-only` works again.
-3. **`release.yml`**, unsigned, if a release is wanted before the $99 decision.
-4. **Test on macOS 13, 14 and 15.** CI covers building and loading. Whether the
-   saver actually *runs* under the pre-14 screen saver host still needs a real
-   machine or a VM.
+1. **`release.yml`**, unsigned — tag-triggered, zip the `.saver`, create a
+   GitHub Release. The one piece of `AING-0001` that was planned and not built.
+2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
+   cover a screen saver actually blanking a screen, and there is no runner
+   image below 14. A VM is the realistic route.
+3. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
+   nothing else does.
+4. **Multi-monitor**, whenever a second display is to hand — the last untested
+   claim that is purely about behavior rather than packaging.
 
 ---
 
@@ -163,22 +179,38 @@ the signing question above. Unsigned is a perfectly good first version.
 
 Claims in this repository that are reasoned but **not verified**:
 
-- **Anything about macOS 13, 14, or 15.** Everything was built and run on
-  macOS 26. macOS 14 restructured the screen saver host; this port has only
-  ever run under the new arrangement. The CI matrix starts closing this gap for
-  build-and-load, and not at all for actual screen-saver behavior.
+- **Whether the saver actually *runs* on macOS 13, 14 or 15.** CI now builds
+  and loads it on 14, 15 and latest, which is a real narrowing of this gap —
+  but loading a bundle is not running a screen saver. macOS 14 restructured the
+  screen saver host, and nothing has exercised the pre-14 arrangement at all.
+  Everything was developed on macOS 26. There is no CI image below 14, so this
+  needs a real machine or a VM.
 - **Multi-monitor behavior** (`docs/NOTES.md` deviation 4). Follows from the
   recovered `GetSystemMetrics` calls on the Windows side and documented macOS
   behavior on the other, but this machine drove one display.
-- **Whether AppKit view instantiation survives a headless CI runner.** Still
-  open — but now actively tested rather than worried about. The `build` job
-  exercises it, and the `engine` job is deliberately independent of it so the
-  arithmetic stays measurable whichever way it goes.
-- **GitHub runner labels**, which change; **whether `stapler` accepts a bare
-  `.saver`**; **`.pkg` per-user install semantics**. All flagged in `AING-0001`.
+- **Whether `stapler` accepts a bare `.saver`**, and **`.pkg` per-user install
+  semantics**. Both flagged in `AING-0001`, both blocked on the signing
+  decision anyway.
 
 Things that *were* verified are marked as such, with commands and output, in
 `AING-0001`'s appendix and throughout `docs/TEARDOWN.md`.
+
+### Resolved by the first CI run (2026-09-15)
+
+Two long-standing entries above came off this list, and one is worth stating
+plainly because it was the biggest unknown in the project:
+
+- **AppKit view instantiation works fine on a headless runner.** `LoadTest`
+  resolved `NSPrincipalClass` through the Objective-C runtime, instantiated a
+  `ScreenSaverView` and ran a frame on all three images; `Render` produced its
+  offscreen frames and regenerated the SVGs with no drift. No window server was
+  needed. Splitting `ci.yml` into an engine job and a build job was insurance
+  against a failure that did not happen — worth keeping, since it costs nothing
+  and the arithmetic gate stays independent, but the worry itself is settled.
+- **The runner labels `macos-14`, `macos-15` and `macos-latest` all exist and
+  all work.** True as of 2026-09-15; these do change over time, so a future
+  failure of the whole matrix at once is most likely a retired image rather
+  than a real regression.
 
 ---
 

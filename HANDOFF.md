@@ -192,6 +192,7 @@ Working documents:
 | `aingineering/AING-0004-plan-review.md` | two independent reviews of AING-0003; 16 findings, 3 structural |
 | `aingineering/AING-0005-uninstaller-revised.md` | the v1.1.0 plan, **implemented**. Supersedes AING-0003 |
 | `aingineering/AING-0006-thumbnail-cache.md` | step 0's result and two gaps it uncovered, **implemented**; amends AING-0005 §1, §3, §4, §5 |
+| `aingineering/AING-0007-applescript-uninstaller.md` | **the next plan**: a GUI uninstaller in AppleScript, for v1.2.0. Not started |
 
 New working documents take the next `AING-NNNN` in sequence; numbers are never
 reused, and a plan is never amended in place — a revision gets a new number.
@@ -325,14 +326,21 @@ rather than waiting on it, which was the right call — the workaround is one
 
 1. **Land and tag v1.1.0.** The work is done; see "Landing v1.1.0" above. Date
    the changelog, merge `--no-ff`, then tag.
-2. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
+2. **Build the AppleScript GUI uninstaller**, `AING-0007-applescript-uninstaller.md`.
+   Self-contained, three commits, for v1.2.0. Feasibility is measured rather
+   than assumed — `osacompile` needs no Xcode, the app ad-hoc signs like the
+   saver, and its handlers can be tested headlessly. One open decision is
+   flagged in its §4: the app ships *alongside* `Uninstall Starfield.command`
+   rather than replacing it, because an ad-hoc-signed app is the more likely of
+   the two to be refused by Gatekeeper.
+3. **Run it on macOS 13, 14 and 15.** CI covers building and loading; it cannot
    cover a screen saver actually blanking a screen, and there is no runner
    image below 14. A VM is the realistic route.
-3. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
+4. **Decide the $99.** Everything in §4 and §5 of `AING-0001` waits on it, and
    nothing else does.
-4. **Multi-monitor**, whenever a second display is to hand — the last untested
+5. **Multi-monitor**, whenever a second display is to hand — the last untested
    claim that is purely about behavior rather than packaging.
-5. **Watch what the first downloaders hit.** The Gatekeeper story is reasoned
+6. **Watch what the first downloaders hit.** The Gatekeeper story is reasoned
    and partly verified — quarantine does propagate through the zip onto the
    inner executable — but nobody has yet installed a downloaded build on a
    machine that did not produce it.

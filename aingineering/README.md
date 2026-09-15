@@ -26,11 +26,13 @@ is the current state.
 | [AING-0004](AING-0004-plan-review.md) | complete | Two independent reviews of AING-0003 — its author re-reading it, and a fresh agent with no memory of writing it. Sixteen findings, three structural. The overlaps are the ones most likely to be real; the divergences are what a single pass would have shipped. |
 | [AING-0005](AING-0005-uninstaller-revised.md) | **implemented** in 1.1.0 | The v1.1.0 plan as the reviews reshaped it. Self-contained. Its §2 is the pair of findings that reordered the uninstaller: a live `cfprefsd` client resurrects a deleted plist, and `cfprefsd` ignores `HOME`, so tests cannot be isolated that way. |
 | [AING-0006](AING-0006-thumbnail-cache.md) | **implemented** in 1.1.0 | Step 0's answer, and the two gaps it uncovered. Amends AING-0005 §1, §3, §4 and §5. The serious one is §7: saver preferences live in a sandbox container that `defaults` cannot see, so the planned uninstaller would have deleted a decoy. §9 is the `--refresh-preview` spec. |
+| [AING-0007](AING-0007-applescript-uninstaller.md) | **planned** for 1.2.0 | A GUI uninstaller in AppleScript, driving `uninstall.sh`. Builds with `osacompile` and needs no Xcode. Its §1.2 is the finding the design rests on: AppleScript handlers can be called headlessly, so the logic is testable even though the dialogs are not. §3 drops `--all-users` and says why; §4 argues the Gatekeeper case *against* the feature. |
 
 ## Reading paths
 
 **If you are implementing something:** AING-0005 with AING-0006 open beside it.
 Together they are the whole v1.1.0 design. AING-0003 and AING-0004 are history.
+AING-0007 is the next thing to build, and is self-contained.
 
 **If you want the story rather than the specification:**
 [`docs/UNINSTALLING.md`](../docs/UNINSTALLING.md) and

@@ -1,0 +1,99 @@
+name: CI
+
+# The repository is public, so macOS runner minutes are free. There is
+# therefore no reason to be frugal: every push and every pull request builds,
+# across every runner image available. Coverage across macOS versions is the
+# single thing this project most lacks -- everything in it was developed and
+# run on macOS 26 alone, against a deployment floor of 13.0.
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: Engine tests (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, macos-15, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          swift --version
+          echo "SDK: $(xcrun --show-sdk-path)"
+
+      - name: Compile and run the engine suite
+        # Sources/StarfieldEngine.swift imports Foundation and nothing else, so
+        # this gate needs no AppKit, no window server and no bundle loading.
+        #
+        # It deliberately does not go through ./build.sh. The engine is where
+        # fidelity to the original binary can actually regress, and that signal
+        # should stay meaningful even if instantiating an NSView turns out to be
+        # impossible on a headless runner -- which is exactly what the build job
+        # below is testing. Separating them means a red build does not hide a
+        # green engine, or vice versa.
+        #
+        # MIN_MACOS is read out of build.sh rather than repeated here, so the
+        # deployment target cannot drift between the script and the workflow.
+        run: |
+          set -euo pipefail
+          MIN_MACOS=$(sed -n 's/^MIN_MACOS=//p' build.sh)
+          echo "deployment target: $MIN_MACOS"
+          xcrun swiftc -O -wmo -sdk "$(xcrun --show-sdk-path)" \
+            -target "$(uname -m)-apple-macosx$MIN_MACOS" \
+            -o "$RUNNER_TEMP/EngineTests" \
+            Sources/StarfieldEngine.swift Tools/EngineTests/main.swift
+          "$RUNNER_TEMP/EngineTests"
+
+  build:
+    name: Build and verify (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, macos-15, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build, test, and load the bundle
+        # build.sh runs the engine suite, then LoadTest, which resolves
+        # NSPrincipalClass through the Objective-C runtime and instantiates a
+        # ScreenSaverView. Whether that survives a headless runner has never
+        # been tested; this job is the experiment. If it fails here, the engine
+        # job above still covers the arithmetic.
+        run: ./build.sh
+
+      - name: Bundle layout
+        run: |
+          BIN=build/Starfield.saver/Contents/MacOS/Starfield
+          echo "architectures: $(xcrun lipo -archs "$BIN")"
+          xcrun otool -l "$BIN" | grep -A3 LC_BUILD_VERSION | grep minos
+          echo "plist floor:   $(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' \
+            build/Starfield.saver/Contents/Info.plist)"
+          codesign -dv build/Starfield.saver 2>&1 | head -4
+
+      - name: Artwork still matches the simulation
+        # The README illustrations are emitted from StarfieldEngine with fixed
+        # seeds, so they regenerate byte-for-byte. A diff here means the picture
+        # and the code have drifted apart: regenerate and commit the result,
+        # never hand-edit the SVGs.
+        run: |
+          ./build/Render "$RUNNER_TEMP/frames" --svg docs/assets
+          git diff --exit-code -- docs/assets
+
+      - name: Upload the built saver
+        if: matrix.runner == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Starfield.saver
+          path: build/Starfield.saver
+          if-no-files-found: error

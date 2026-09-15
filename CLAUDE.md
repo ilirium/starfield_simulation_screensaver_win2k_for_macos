@@ -79,15 +79,31 @@ catch artwork drifting from the simulation. Regenerate after any change to the
 engine. (SVG needs no Y flip: like Windows GDI it measures Y downward. The
 macOS view is the odd one out.)
 
+The trail image is the useful visual regression check: stars must streak
+radially outward from the center and grow along the way.
+
 `Tools/pe-imports.py <binary>` dumps a 32-bit PE import table with each
 function's IAT address — the address to grep a disassembly for to find that
-function's call sites. It is how the teardown started; see `docs/TEARDOWN.md` §3. The trail image is the
-useful regression check: stars must streak radially outward from the center
-and grow along the way. Build it the same way as the preview, substituting
-`Tools/main.swift` for `Sources/main.swift`.
+function's call sites. It is how the teardown started; see `docs/TEARDOWN.md`
+§3.
 
 Prefer these over screen capture — verifying visuals does not require
 recording the user's display.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request, across
+`macos-14`, `macos-15` and `macos-latest`. Two jobs, deliberately separate:
+
+- **engine** compiles `StarfieldEngine.swift` plus the test suite directly and
+  runs it. No frameworks, so it needs nothing from a window server. It reads
+  `MIN_MACOS` out of `build.sh` rather than repeating it.
+- **build** runs `./build.sh`, inspects the bundle, and regenerates the SVGs to
+  check they still match the simulation.
+
+They are split so the arithmetic signal stays readable even if AppKit turns out
+not to work on a headless runner — which is untested, and is what the build job
+is there to find out.
 
 ## Installing
 
